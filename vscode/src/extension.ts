@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// VS Code wrapper (SPEC D33). It starts the same companion as the Zed
+// VS Code wrapper (ARCHITECTURE D33). It starts the same companion as the Zed
 // extension: one client for devicetree sources (companion --server <dts-lsp>)
 // and one for binding YAML (companion --bindings). Everything editor-specific
 // lives here: the visual editor panel, the context picker and the status bar.
@@ -110,7 +110,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       "zephyrDevicetree.bindings",
       "Zephyr Bindings",
       { module: companion, args: ["--bindings"], transport: TransportKind.stdio },
-      // The server answers only for files in binding directories (SPEC D22).
+      // The server answers only for files in binding directories (ARCHITECTURE D22).
       { documentSelector: [{ scheme: "file", language: "yaml" }], outputChannel: log, initializationOptions: { yamlSchema: schema } },
     );
     await bindings.start().catch((e) => log.appendLine(`bindings server: ${e}`));
@@ -256,7 +256,7 @@ async function refreshStatus(): Promise<void> {
 
 /**
  * nRF DeviceTree runs its own devicetree-language-server on the same files:
- * two servers mean duplicate diagnostics and completions (SPEC 6c, stage 10).
+ * two servers mean duplicate diagnostics and completions (ARCHITECTURE, coexistence).
  */
 async function warnAboutNrf(context: vscode.ExtensionContext): Promise<void> {
   const key = "nrfWarningDismissed";

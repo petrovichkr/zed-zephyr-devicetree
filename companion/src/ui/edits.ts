@@ -2,7 +2,7 @@
 //
 // Turns a visual-editor request into an LSP WorkspaceEdit on one overlay file.
 // The edit is applied by Zed (workspace/applyEdit), so it lands in the buffer
-// and never clobbers unsaved changes (SPEC 4.3, risk "dirty file").
+// and never clobbers unsaved changes (ARCHITECTURE D19).
 //
 // Strategy, most local first:
 // 1. the property is already assigned in the target overlay -> replace it;

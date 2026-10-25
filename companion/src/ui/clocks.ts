@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// STM32 clock tree (SPEC 6c, stage 8, D27): sources -> PLL -> SYSCLK -> AHB/APB
+// STM32 clock tree (ARCHITECTURE D27): sources -> PLL -> SYSCLK -> AHB/APB
 // -> peripherals, with frequencies computed from the devicetree and checked
 // against the limits of the part. Families with a model: F4, L4, F1, F0 (the
 // ones the user has); any other STM32 gets the same graph without calculation.

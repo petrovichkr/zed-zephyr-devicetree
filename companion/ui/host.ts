@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Embedding editor (VS Code webview, SPEC D33). The page then runs in an iframe
+// Embedding editor (VS Code webview, ARCHITECTURE D33). The page then runs in an iframe
 // (`?embed=vscode`) and talks to its parent with postMessage: the parent sends
 // its theme, the page asks it to save files (downloads are blocked in webviews).
 // In a plain browser tab nothing here applies.

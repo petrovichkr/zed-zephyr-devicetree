@@ -9130,7 +9130,7 @@ var EditorBackend = class {
       };
     });
   }
-  /** Board overlay for the active build when it has no user overlay (SPEC D32). */
+  /** Board overlay for the active build when it has no user overlay (ARCHITECTURE D32). */
   async createOverlay() {
     const active = (await this.contexts()).find((c) => c.active);
     if (!active?.newOverlay || !this.h.createOverlay) return { applied: false, error: "this build cannot get a new overlay" };
@@ -9731,7 +9731,7 @@ var Proxy2 = class {
     const diagnostics = (msg.params.diagnostics ?? []).filter((d) => (d.severity ?? 1) <= 2);
     return { ...msg, params: { ...msg.params, diagnostics } };
   }
-  /** Offer every other context that contains `file` (SPEC D5). */
+  /** Offer every other context that contains `file` (ARCHITECTURE D5). */
   withContextActions(msg, file) {
     const owners = this.contexts.filter((c) => filesOf(c).has(file));
     const actions = owners.filter((c) => !c.active && c.type !== "Ad Hoc").map((c) => ({

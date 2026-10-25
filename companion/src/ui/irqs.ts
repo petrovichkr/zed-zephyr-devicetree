@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Interrupts (SPEC 4.3, stage 9): which node uses which line of which
+// Interrupts (ARCHITECTURE, visual editor): which node uses which line of which
 // interrupt controller. `interrupts` goes to `interrupt-parent`, inherited from
 // the nearest ancestor that has one; `interrupts-extended` names the controller
 // per entry. Entries are split by the controller's `#interrupt-cells`, and the

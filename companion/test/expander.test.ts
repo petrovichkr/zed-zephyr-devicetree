@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // External GPIO controller (nxp,pca9555 on i2c) with an LED and a key on its
-// pins, on an ESP32 where SoC ports have 32 pins (docs/research/nrf-visual-gap.md §3).
+// pins, on an ESP32 where SoC ports have 32 pins.
 
 import { describe, expect, it } from "vitest";
 import { buildBuses } from "../src/ui/buses.js";

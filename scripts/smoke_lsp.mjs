@@ -11,7 +11,7 @@
 //   empty user settings, as a fresh Zed install would.
 // env UI_CHECK=...: see below; exercises the visual editor end to end.
 // env UI_CREATE=1: with UI_CHECK, first create the board overlay if the build has
-//   none (writes a file: use a scratch workspace, never the reference project).
+//   none (writes a file: use a scratch workspace, never a workspace you care about).
 // env PROBE_OUT=<dir>: also dump serializedContext / memoryViews of the active context.
 
 import { spawn } from "node:child_process";

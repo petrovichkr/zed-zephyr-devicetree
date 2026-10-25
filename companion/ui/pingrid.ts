@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Logical pin grid (SPEC 6c, stage 7, D26): ports by rows, pins by columns,
+// Logical pin grid (ARCHITECTURE D26): ports by rows, pins by columns,
 // colour by function class, conflicts in red. A function is moved to another
 // pin by dragging its cell, or from the pin panel ("Move to" / "Move here").
 // The pins a function can reach are highlighted while dragging.

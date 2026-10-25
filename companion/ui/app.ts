@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Browser side of the visual devicetree editor (SPEC 4.3). Served as one
+// Browser side of the visual devicetree editor (ARCHITECTURE D2, D20). Served as one
 // self-contained page by the companion; talks to it via /api (see api.ts).
 
 import * as api from "./api.js";

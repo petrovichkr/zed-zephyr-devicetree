@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Clocks tab (SPEC 6c, stage 8, D27): the clock tree left to right (sources ->
+// Clocks tab (ARCHITECTURE D27): the clock tree left to right (sources ->
 // PLL -> SYSCLK -> buses -> peripherals) with frequencies on the boxes and
 // limit violations in red. Divisors and sources are edited in the side panel;
 // the tree is recomputed in the page from the draft (same code as the

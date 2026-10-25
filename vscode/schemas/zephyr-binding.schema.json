@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "zephyr-binding://schema/binding.json",
   "title": "Zephyr devicetree binding",
-  "description": "Structure and key descriptions only. Which keys are allowed is checked by the Zephyr Bindings language server with the rules of the workspace's edtlib.py (SPEC D23), so unknown keys are not errors here.",
+  "description": "Structure and key descriptions only. Which keys are allowed is checked by the Zephyr Bindings language server with the rules of the workspace's edtlib.py (ARCHITECTURE D23), so unknown keys are not errors here.",
   "$comment": "SPDX-License-Identifier: Apache-2.0",
   "type": "object",
   "definitions": {

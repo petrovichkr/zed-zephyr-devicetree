@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Catalog of device bindings for "Add device" (SPEC 6c, stage 5), from
+// Catalog of device bindings for "Add device" (ARCHITECTURE D30), from
 // dts-lsp's `devicetree/zephyrTypeBindings`. That payload is large (tens of MB,
 // includes already merged), so only what the form needs is kept. dts-lsp drops
 // an inherited `on-bus:`; the buses are then taken from every included

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Pin map (SPEC 4.3, stage 4): which node uses which SoC pin, through pinctrl
+// Pin map (ARCHITECTURE D24): which node uses which SoC pin, through pinctrl
 // states and *-gpios phandle arrays. Pinctrl encodings are vendor specific and
 // decoded from the source text as written (macros are not expanded):
 //   ESP32  pinmux = <UART0_TX_GPIO43>               -> GPIO43, UART0_TX

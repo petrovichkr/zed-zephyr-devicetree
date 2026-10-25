@@ -2,7 +2,7 @@
 //
 // Zephyr knowledge on top of the west model: modules (module.yml), build
 // directories (build_info.yml, sysbuild images) and the dts-lsp settings and
-// contexts derived from them (SPEC R1-R6, D9, D10).
+// contexts derived from them (ARCHITECTURE D3, D9, D10).
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
@@ -173,7 +173,7 @@ export function withPendingOverlay(b: BuildContext, external: string[]): BuildCo
 
 /**
  * Every build directory under the configured parents, one context per image for
- * sysbuild builds. Newest first (SPEC D5).
+ * sysbuild builds. Newest first (ARCHITECTURE D5).
  */
 export function discoverBuilds(topdir: string, opts: DiscoveryOptions = defaultDiscovery): BuildContext[] {
   const exclude = opts.exclude.map(globToRegExp);
@@ -220,7 +220,7 @@ function dtsRootIncludes(root: string): string[] {
 }
 
 /**
- * Defaults for files that are not part of any build (SPEC D9): every module's
+ * Defaults for files that are not part of any build (ARCHITECTURE D9): every module's
  * dts_root first, Zephyr last.
  */
 export function restrictedDefaults(ws: WestWorkspace, modules: ZephyrModule[]) {

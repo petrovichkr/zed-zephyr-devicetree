@@ -5,7 +5,7 @@ Extensions for [Zed](https://zed.dev) and VS Code (D33) that support Zephyr devi
 for every board Zephyr supports.
 
 Design overview: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Code comments cite its
-decisions as "SPEC Dn". Design decisions change only with the maintainer's agreement.
+decisions as "ARCHITECTURE Dn". Design decisions change only with the maintainer's agreement.
 
 ## Key points
 

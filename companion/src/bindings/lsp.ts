@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Language server for Zephyr binding YAML (SPEC 4.2, D7, D22). Zed attaches it
+// Language server for Zephyr binding YAML (ARCHITECTURE D7, D22). Zed attaches it
 // to its built-in YAML language; it answers only for files in a bindings
 // directory and stays silent elsewhere, next to yaml-language-server.
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Discovery on a synthetic workspace shaped like the reference project (SPEC R8):
+// Discovery on a synthetic workspace shaped like a real T2 workspace:
 // manifest repo == topdir, zephyr imported with path-prefix and an allowlist,
 // the repo itself is a module, sysbuild and plain builds, twister output.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Which functions each SoC pin can take (SPEC 6c, stage 7). Everything comes
+// Which functions each SoC pin can take (ARCHITECTURE D24, D26). Everything comes
 // from the workspace (D26):
 //   STM32  HAL pinctrl nodes already in the devicetree (usart1_tx_pa9 with
 //          STM32_PINMUX('A', 9, AF7)); the node label is what pinctrl-N refers to

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Overview tab (SPEC 6c, stage 6), like the nRF Peripherals view: the SoC in
+// Overview tab (ARCHITECTURE, visual editor), like the nRF Peripherals view: the SoC in
 // the middle, peripheral blocks grouped by class in two columns around it, and
 // on the outer edges the pins each block uses. Drawn by hand in SVG (D29).
 

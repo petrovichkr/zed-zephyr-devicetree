@@ -20,6 +20,6 @@
 /vscode/node_modules/
 /vscode/dist/
 
-# Private notes: their own repository (spec, research, reference project)
+# Private notes: their own repository (design notes)
 /private/
 CLAUDE.local.md

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Saving a diagram as a standalone SVG file (nRF gap report, P3). The diagrams
+// Saving a diagram as a standalone SVG file (ARCHITECTURE, visual editor). The diagrams
 // are styled by classes and theme tokens, so the computed style of every
 // element is inlined into a copy; the file then looks the same outside the
 // editor, in the theme it was exported from.

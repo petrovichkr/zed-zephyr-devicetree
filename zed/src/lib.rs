@@ -12,7 +12,7 @@ const NPM_PACKAGE: &str = "devicetree-language-server";
 const NPM_VERSION: &str = "0.14.3";
 const SERVER_ENTRY: &str = "node_modules/devicetree-language-server/dist/server.js";
 
-/// The companion (SPEC D15) is bundled into the extension and written to the
+/// The companion (ARCHITECTURE D15) is bundled into the extension and written to the
 /// extension's work directory, so a dev install needs no separate download.
 const COMPANION_JS: &str = include_str!("../../companion/dist/companion.cjs");
 const COMPANION_FILE: &str = "companion.cjs";

@@ -1,7 +1,7 @@
 # Architecture
 
 Zephyr devicetree support for Zed and VS Code: an analog of nRF DeviceTree for every board
-Zephyr supports. Code comments cite design decisions as "SPEC Dn"; the numbers below match.
+Zephyr supports. Code comments cite design decisions as "ARCHITECTURE Dn".
 
 ## Components
 

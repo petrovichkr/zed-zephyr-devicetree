@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Local HTTP server of the visual editor (SPEC D15, 4.3). Listens on 127.0.0.1
+// Local HTTP server of the visual editor (ARCHITECTURE D15). Listens on 127.0.0.1
 // only, on a random port; every request must carry the per-session token and a
 // loopback Host header (DNS rebinding). The port in Host may differ when the
 // editor forwards it (VS Code Remote, `asExternalUri`). Model changes are pushed

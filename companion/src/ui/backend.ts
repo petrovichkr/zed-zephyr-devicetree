@@ -73,7 +73,7 @@ export class EditorBackend implements UiBackend {
     });
   }
 
-  /** Board overlay for the active build when it has no user overlay (SPEC D32). */
+  /** Board overlay for the active build when it has no user overlay (ARCHITECTURE D32). */
   async createOverlay(): Promise<{ applied: boolean; error?: string; file?: string }> {
     const active = (await this.contexts()).find((c) => c.active);
     if (!active?.newOverlay || !this.h.createOverlay) return { applied: false, error: "this build cannot get a new overlay" };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Compact view model for the visual editor (SPEC 4.3), built from dts-lsp's
+// Compact view model for the visual editor (ARCHITECTURE D21), built from dts-lsp's
 // `devicetree/serializedContext` (several MB) and `devicetree/memoryViews`.
 // Property values are taken verbatim from the source text, so macros stay as
 // written. This module is the contract with the browser app (see UiModel).

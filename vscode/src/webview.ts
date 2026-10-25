@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// The visual editor inside VS Code (SPEC D33): a webview panel whose content is
+// The visual editor inside VS Code (ARCHITECTURE D33): a webview panel whose content is
 // an iframe on the companion's local server. `asExternalUri` makes the URL
 // reachable when the extension host runs remotely (SSH, WSL, containers).
 // A small script in the panel relays between the page and VS Code: the theme

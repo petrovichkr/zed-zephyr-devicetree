@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Peripheral class icons (stage 9, docs/research/nrf-visual-gap.md §5.9):
+// Peripheral class icons (ARCHITECTURE, visual editor):
 // 14x14 stroke glyphs on currentColor, one per family of binding classes
 // (the directory under dts/bindings). Used in Overview, Tree and Buses.
 

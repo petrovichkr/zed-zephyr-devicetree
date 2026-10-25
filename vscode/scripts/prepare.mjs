@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Copies the shared companion bundle and the pinned devicetree-language-server
-// into dist/, so the .vsix runs without downloads (SPEC D33).
+// into dist/, so the .vsix runs without downloads (ARCHITECTURE D33).
 
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";

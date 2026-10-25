@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Buses tab (SPEC 6c, stage 5): one diagram per bus controller, drawn by hand
+// Buses tab (ARCHITECTURE D30, D31): one diagram per bus controller, drawn by hand
 // in SVG (D29). Controller on the left, devices on the right, links labelled
 // with address / chip select / frequency. The node's Bus section in the
 // details panel (address and chip select editing) lives here too.

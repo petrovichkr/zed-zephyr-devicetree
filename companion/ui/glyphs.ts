@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Hand-drawn glyphs for LEDs, keys and GPIO flags (D29, docs/research/nrf-visual-gap.md §4).
+// Hand-drawn glyphs for LEDs, keys and GPIO flags (ARCHITECTURE D29).
 // Strokes only, on currentColor and theme tokens, so both themes work; every
 // glyph carries a <title>, and meaning is never colour alone.
 

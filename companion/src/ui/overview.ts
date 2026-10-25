@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Overview diagram (SPEC 6c, stage 6): the SoC with its peripherals grouped by
+// Overview diagram (ARCHITECTURE, visual editor): the SoC with its peripherals grouped by
 // class and the pins each peripheral uses. A peripheral ("block") is a node with
 // a binding file and a compatible and no such ancestor, except CPUs and memory
 // regions (shown in the SoC box). Pins of nested nodes (bus devices, flash

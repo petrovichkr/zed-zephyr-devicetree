@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Buses and their devices (SPEC 6c, stage 5). A controller is any node whose
+// Buses and their devices (ARCHITECTURE D30, D31). A controller is any node whose
 // binding has `bus:` (i2c, spi, uart, can, mipi-dbi, ...); its devices are the
 // children with a `compatible`, plus nodes that point at it by phandle
 // (`i2c = <&i2c1>` in an SMBus node, `zephyr,console = &uart0` in /chosen).

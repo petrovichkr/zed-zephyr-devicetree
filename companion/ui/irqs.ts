@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// IRQ tab (SPEC 4.3, stage 9): per interrupt controller, the lines in use with
+// IRQ tab (ARCHITECTURE, visual editor): per interrupt controller, the lines in use with
 // their node, interrupt-names entry and the other specifier cells (priority,
 // flags). Shared lines are marked; a cell other than the line is edited in
 // place and written to the overlay.

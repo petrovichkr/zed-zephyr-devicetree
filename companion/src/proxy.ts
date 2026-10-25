@@ -3,11 +3,11 @@
 // Zed <-> companion <-> dts-lsp. Everything is forwarded unchanged except:
 // - after `initialized`, workspace defaults and build contexts are pushed to
 //   dts-lsp through its integration API (setDefaultSettings / requestContext);
-// - code actions get "switch context" entries, executed here (SPEC D5);
+// - code actions get "switch context" entries, executed here (ARCHITECTURE D5);
 // - info/hint diagnostics in SDK and third-party modules are dropped;
-// - "open visual editor" starts the local web UI (SPEC D15, 4.3).
+// - "open visual editor" starts the local web UI (ARCHITECTURE D15).
 // A client that declares `experimental.zephyrDevicetree` (the VS Code wrapper,
-// SPEC D33) shows the UI itself and gets dts-lsp's notifications.
+// ARCHITECTURE D33) shows the UI itself and gets dts-lsp's notifications.
 
 import { mkdirSync, watch, writeFileSync, type FSWatcher } from "node:fs";
 import { basename, dirname, join, relative, sep } from "node:path";
@@ -223,7 +223,7 @@ export class Proxy {
     return { ...msg, params: { ...msg.params, diagnostics } };
   }
 
-  /** Offer every other context that contains `file` (SPEC D5). */
+  /** Offer every other context that contains `file` (ARCHITECTURE D5). */
   private withContextActions(msg: Message, file: string): Message {
     const owners = this.contexts.filter((c) => filesOf(c).has(file));
     const actions = owners
@@ -313,7 +313,7 @@ export class Proxy {
     if (fingerprint !== this.fingerprint) {
       this.fingerprint = fingerprint;
       // Re-adding in newest-first order makes dts-lsp prefer the newest build
-      // when a file belongs to several (SPEC D5).
+      // when a file belongs to several (ARCHITECTURE D5).
       for (const [name, id] of [...this.requested].reverse()) {
         await this.server.request("devicetree/removeContext", { id, name }).catch(() => undefined);
       }

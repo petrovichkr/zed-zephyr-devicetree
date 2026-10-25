@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// West workspace model (SPEC D16): topdir, zephyr base and the project list.
+// West workspace model (ARCHITECTURE D16): topdir, zephyr base and the project list.
 // Projects come from `west list` when west is available, otherwise from our own
 // reading of the manifest with its imports. No layout is assumed.
 

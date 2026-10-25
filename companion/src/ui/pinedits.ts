@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Moving a pin function to another pin (SPEC 6c, stage 7, D28). The change is
+// Moving a pin function to another pin (ARCHITECTURE D28). The change is
 // computed on the UI model as new property values; the backend writes each one
 // with planEdit, so it lands in the target overlay like any other edit.
 //   STM32  pinctrl-N of the owner: `&usart1_tx_pa9` -> `&usart1_tx_pb6` (HAL node)
