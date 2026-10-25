@@ -3,7 +3,7 @@
 import type { UiContext, UiModel } from "../src/ui/model.js";
 import * as api from "./api.js";
 
-export type Tab = "tree" | "memory";
+export type Tab = "tree" | "memory" | "pins";
 
 export const CUSTOM = "\u0000custom";
 
@@ -35,6 +35,12 @@ export const state = {
   busy: false,
   connected: true,
   scrollToSelected: false,
+  pinFilter: "",
+  pinOnlyConflicts: false,
+  /** Pin to highlight and scroll to in the Pins tab. */
+  pinFocus: "",
+  pinScroll: false,
+  unknownOpen: false,
 };
 
 let renderer = (): void => {};
@@ -117,6 +123,16 @@ export function select(path: string, opts: { reveal?: boolean; tab?: Tab } = {})
     for (const a of ancestors(path)) state.expanded.add(a);
     state.scrollToSelected = true;
   }
+  rerender();
+}
+
+export function showPin(pin: string): void {
+  state.tab = "pins";
+  state.pinFocus = pin;
+  state.pinScroll = true;
+  const p = pin.toLowerCase();
+  if (state.pinFilter && !p.includes(state.pinFilter.trim().toLowerCase())) state.pinFilter = "";
+  if (state.pinOnlyConflicts && !state.model?.pins.conflicts.includes(pin)) state.pinOnlyConflicts = false;
   rerender();
 }
 

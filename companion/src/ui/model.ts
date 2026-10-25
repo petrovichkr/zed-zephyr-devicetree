@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { buildPinMap, type UiPinMap } from "./pins.js";
 
 /** 0-based position, like LSP. `file` is an absolute path. */
 export interface Loc {
@@ -78,6 +79,7 @@ export interface UiModel {
   root: string; // "/"
   nodes: Record<string, UiNode>;
   bindings: Record<string, UiBinding>;
+  pins: UiPinMap;
   memory: UiMemoryRegion[];
 }
 
@@ -212,6 +214,7 @@ export function buildModel(
     root: "/",
     nodes,
     bindings,
+    pins: buildPinMap(nodes),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };
 }

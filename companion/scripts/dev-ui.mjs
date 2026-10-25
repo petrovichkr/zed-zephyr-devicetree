@@ -2,7 +2,8 @@
 //
 // Manual check of dist/ui.html: `node scripts/dev-ui.mjs <model.json> [port]`.
 // Serves the page and the model with no-op /api endpoints; edits are logged
-// and followed by a `changed` event. Token is `dev`.
+// and followed by a `changed` event. Token is `dev`. DEV_UI_INJECT=1 adds a
+// fake pin conflict and an undecoded pinctrl entry.
 
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -16,6 +17,13 @@ if (!modelFile) {
 }
 const html = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "ui.html");
 const model = JSON.parse(readFileSync(modelFile, "utf8"));
+if (process.env.DEV_UI_INJECT && model.pins?.usages.length) {
+  const u = model.pins.usages[0];
+  const other = Object.keys(model.nodes).find((p) => p !== u.owner && p !== "/") ?? u.owner;
+  model.pins.usages.splice(1, 0, { ...u, owner: other, property: "cs-gpios", state: undefined, function: "GPIO" });
+  model.pins.conflicts.push(u.pin);
+  model.pins.unknown.push({ owner: other, property: "pinctrl-0", value: "<VENDOR_PIN(3, 7)>" });
+}
 const contexts = [model.context, { id: "other", names: ["other/app"], active: false, overlays: [] }];
 const clients = new Set();
 

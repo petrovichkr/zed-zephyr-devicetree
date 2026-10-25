@@ -3,7 +3,8 @@
 import type { Loc, UiBinding, UiBindingProp, UiModel, UiNode, UiProp } from "../src/ui/model.js";
 import { h } from "./dom.js";
 import { basename, cells, enumValue, locText, locTitle, quote } from "./format.js";
-import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, state } from "./state.js";
+import { usageText } from "./pins.js";
+import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, showPin, state } from "./state.js";
 
 const locLink = (l: Loc, text = locText(l)): HTMLElement =>
   h("button", { class: "link mono", title: `Open ${locTitle(l)}`, onclick: () => void openLoc(l) }, text);
@@ -284,6 +285,29 @@ function section(title: string, ...body: (HTMLElement | null | (HTMLElement | nu
   return h("section", null, h("h3", null, title), ...body);
 }
 
+function pinSection(m: UiModel, node: UiNode): HTMLElement | null {
+  const used = m.pins.usages.filter((u) => u.owner === node.path);
+  if (!used.length) return null;
+  const conflict = new Set(m.pins.conflicts);
+  return section(
+    `Pins (${used.length})`,
+    h(
+      "ul",
+      { class: "node-pins" },
+      used.map((u) =>
+        h(
+          "li",
+          { class: u.state && u.state !== "default" ? "nondefault" : "" },
+          h("button", { class: `link mono${conflict.has(u.pin) ? " error-text" : ""}`, title: "Show in Pins tab", onclick: () => showPin(u.pin) }, u.pin),
+          u.function ? h("span", { class: "mono" }, ` ${u.function}`) : null,
+          h("span", { class: "muted" }, ` ${usageText(u)}`),
+          conflict.has(u.pin) ? h("span", { class: "badge error" }, "conflict") : null,
+        ),
+      ),
+    ),
+  );
+}
+
 export function renderDetails(m: UiModel): HTMLElement {
   const node = m.nodes[state.selected];
   if (!node) return h("div", { class: "empty" }, "Select a node");
@@ -332,6 +356,7 @@ export function renderDetails(m: UiModel): HTMLElement {
           ]
         : null,
     ),
+    pinSection(m, node),
     node.definitions.length ? section(`Definitions (${node.definitions.length})`, h("ul", { class: "defs" }, node.definitions.map((l) => h("li", null, locLink(l, l.file + `:${l.line + 1}`))))) : null,
     section(
       `Properties (${node.props.length})`,
