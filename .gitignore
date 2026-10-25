@@ -19,3 +19,7 @@
 # VS Code wrapper: dist/ is generated (companion copy, dts-lsp, bundle, .vsix)
 /vscode/node_modules/
 /vscode/dist/
+
+# Private notes: their own repository (spec, research, reference project)
+/private/
+CLAUDE.local.md

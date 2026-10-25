@@ -2,7 +2,7 @@
 
 Zephyr devicetree support for every board Zephyr supports, in [Zed](https://zed.dev) and
 VS Code. Both editors share one language core and one visual editor; see
-[docs/SPEC.md](docs/SPEC.md) for the design and its decisions.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Features
 

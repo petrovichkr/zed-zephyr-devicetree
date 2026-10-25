@@ -4,9 +4,8 @@ Extensions for [Zed](https://zed.dev) and VS Code (D33) that support Zephyr devi
 `.dtsi`, `.overlay`) and binding YAML. An analog of the nRF DeviceTree extension for VS Code, but
 for every board Zephyr supports.
 
-**Source of truth: [`docs/SPEC.md`](docs/SPEC.md).** It holds decisions D1…D33, requirements
-R1…R8, stages and open questions. Decisions change only with the user's agreement; SPEC.md is
-updated afterwards.
+Design overview: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Code comments cite its
+decisions as "SPEC Dn". Design decisions change only with the maintainer's agreement.
 
 ## Key points
 
@@ -16,9 +15,8 @@ updated afterwards.
   extension and are marked `TODO(upstream)`.
 - Grammar: `joelspadin/tree-sitter-devicetree` at a pinned `rev` (Zed); our own TextMate
   grammar in VS Code.
-- Reference project: `~/zephyr-workspace/`. A T2 west workspace, Zephyr lives
-  in `dist/zephyrproject/zephyr`, the repository is a module itself, with sysbuild, snippets and
-  many `build/*` directories. Verify changes on it. **Never modify it.**
+- Verify changes on a real west workspace with builds (sysbuild, several boards); tests and
+  scripts take it from `ZEPHYR_WORKSPACE`. Never write into that workspace from tests.
 
 ## Repository layout (guide)
 
@@ -37,7 +35,7 @@ companion/dist/companion.cjs  # bundle, COMMITTED (include_str! in zed/src/lib.r
 companion/src/bindings/     # binding YAML language server (`companion.cjs --bindings`, D22)
 companion/src/ui/           # visual editor backend: model.ts (contract with the UI), edits.ts, server.ts, backend.ts
 companion/ui/               # visual editor frontend (vanilla TS) -> dist/ui.html, embedded in the bundle
-docs/SPEC.md
+docs/ARCHITECTURE.md        # public design overview
 ```
 
 Zed docs: https://zed.dev/docs/extensions/developing-extensions and
@@ -52,16 +50,16 @@ https://zed.dev/docs/extensions/languages. The API changes; check the current ve
   then `cargo build` in `zed/` and `npm run build` in `vscode/`. Without rebuilding the bundle
   the editors run the old companion.
 - VS Code: `cd vscode && npm run typecheck && npm run build`; `VSCODE_EXEC=/usr/share/code/code npm test`
-  (integration test on the reference project in a throwaway profile), `npm run test:grammar <files>`
+  (integration test on `ZEPHYR_WORKSPACE`/`ZEPHYR_FILE` in a throwaway profile), `npm run test:grammar <files>`
   after editing the TextMate grammar, `npm run package` → `dist/zephyr-devicetree.vsix`.
   Debugging: F5 in `vscode/`.
 - The companion is shared: its behaviour for Zed must not change because of VS Code features;
   those are enabled only through the client's `capabilities.experimental.zephyrDevicetree`.
 - The Rust part builds for `wasm32-wasip2` (`rustup target add wasm32-wasip2`).
 - Checks (in `zed/`): `cargo fmt --check`, `cargo clippy --target wasm32-wasip2`, `cargo test`.
-- After editing `.scm`: `scripts/check_queries.py <reference files>` (venv with `tree-sitter` and
+- After editing `.scm`: `scripts/check_queries.py <devicetree files>` (venv with `tree-sitter` and
   the built grammar). An invalid query silently disables highlighting in Zed.
-- Check LSP changes without an editor via `scripts/smoke_lsp.mjs` on the reference project
+- Check LSP changes without an editor via `scripts/smoke_lsp.mjs` on a west workspace
   (`COMPANION=companion/dist/companion.cjs` runs through the companion with empty user settings;
   `UI_CHECK="<nodePath>|<prop>|<value>"` exercises the web UI end to end, the edit is printed, not applied).
 - UI without an editor: `node companion/scripts/dev-ui.mjs <model.json>` (stub API, token `dev`).

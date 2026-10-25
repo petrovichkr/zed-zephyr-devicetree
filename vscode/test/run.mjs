@@ -4,8 +4,8 @@
 // Integration test in a real VS Code with a throwaway profile (no extensions
 // from the user's profile except redhat.vscode-yaml, so nRF DeviceTree stays out).
 //
-// env ZEPHYR_WORKSPACE: west workspace to open (default: the reference project,
-//   which is only read); ZEPHYR_FILE: .dts file in it to open;
+// env ZEPHYR_WORKSPACE: west workspace with builds to open (only read);
+//   ZEPHYR_FILE: a .dts file of a built board in it;
 // env VSCODE_EXEC: VS Code executable to use instead of downloading one.
 
 import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
@@ -15,9 +15,11 @@ import { fileURLToPath } from "node:url";
 import { runTests } from "@vscode/test-electron";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const workspace = process.env.ZEPHYR_WORKSPACE ?? join(homedir(), "zephyr-workspace");
-process.env.ZEPHYR_WORKSPACE = workspace;
-process.env.ZEPHYR_FILE ??= join(workspace, "boards/vendor/board/board.dts");
+const workspace = process.env.ZEPHYR_WORKSPACE;
+if (!workspace || !process.env.ZEPHYR_FILE) {
+  console.error("set ZEPHYR_WORKSPACE (a west workspace with builds) and ZEPHYR_FILE (a .dts file in it)");
+  process.exit(2);
+}
 
 const profile = mkdtempSync(join(tmpdir(), "zephyr-dt-vscode-"));
 // The only other extension in the profile: redhat.vscode-yaml from the user's
