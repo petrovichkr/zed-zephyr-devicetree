@@ -89,6 +89,33 @@ function gpioFlagBadges(node: UiNode, p: UiProp): HTMLElement | null {
   );
 }
 
+/** `*-supply` phandles of the node, and for a regulator the nodes it powers. */
+function powerSection(m: UiModel, node: UiNode): HTMLElement | null {
+  const byLabel = new Map<string, UiNode>();
+  for (const n of Object.values(m.nodes)) for (const l of n.labels) byLabel.set(l, n);
+  const target = (v: string) => byLabel.get(v.trim().replace(/^<|>$/g, "").trim().replace(/^&/, ""));
+  const name = (n: UiNode) => `${n.labels[0] ? `${n.labels[0]}: ` : ""}${n.name}`;
+  const supplies = node.props.filter((p) => p.name.endsWith("-supply")).map((p) => [p.name, target(p.value)] as const);
+  const powers = Object.values(m.nodes).flatMap((n) => n.props.filter((p) => p.name.endsWith("-supply") && target(p.value)?.path === node.path).map((p) => [n, p.name] as const));
+  if (!supplies.length && !powers.length) return null;
+  return section(
+    "Power",
+    supplies.length
+      ? h(
+          "ul",
+          { class: "defs" },
+          supplies.map(([prop, t]) => h("li", null, h("span", { class: "mono" }, prop), " ← ", t ? h("button", { class: "link", onclick: () => select(t.path) }, name(t)) : h("span", { class: "muted" }, "unresolved"), t?.disabled ? h("span", { class: "badge muted" }, "disabled") : null)),
+        )
+      : null,
+    powers.length
+      ? [
+          h("div", { class: "muted" }, `Supplies ${powers.length} node${powers.length === 1 ? "" : "s"}:`),
+          h("ul", { class: "defs" }, powers.map(([n, prop]) => h("li", null, h("button", { class: "link", onclick: () => select(n.path) }, name(n)), h("span", { class: "muted mono" }, ` ${prop}`)))),
+        ]
+      : null,
+  );
+}
+
 function propRow(node: UiNode, p: UiProp, bp: UiBindingProp | undefined): HTMLElement[] {
   const editing = state.editing?.prop === p.name;
   const n = p.overridden.length;
@@ -374,6 +401,7 @@ export function renderDetails(m: UiModel): HTMLElement {
         : null,
     ),
     busSection(m, node),
+    powerSection(m, node),
     pinSection(m, node),
     node.definitions.length ? section(`Definitions (${node.definitions.length})`, h("ul", { class: "defs" }, node.definitions.map((l) => h("li", null, locLink(l, l.file + `:${l.line + 1}`))))) : null,
     section(
