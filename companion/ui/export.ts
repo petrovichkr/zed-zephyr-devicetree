@@ -6,6 +6,7 @@
 // editor, in the theme it was exported from.
 
 import { h } from "./dom.js";
+import { saveFile } from "./host.js";
 
 const PROPS = [
   "fill",
@@ -49,8 +50,10 @@ export function standaloneSvg(svg: SVGSVGElement): string {
 
 export function downloadSvg(svg: SVGSVGElement | null, name: string): void {
   if (!svg) return;
+  const file = `${name.replace(/[^\w.-]+/g, "_")}.svg`;
+  if (saveFile(file, standaloneSvg(svg))) return;
   const url = URL.createObjectURL(new Blob([standaloneSvg(svg)], { type: "image/svg+xml" }));
-  const a = h("a", { href: url, download: `${name.replace(/[^\w.-]+/g, "_")}.svg` });
+  const a = h("a", { href: url, download: file });
   document.body.append(a);
   a.click();
   a.remove();

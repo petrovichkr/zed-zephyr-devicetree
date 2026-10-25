@@ -9,6 +9,7 @@ import { renderDetails } from "./details.js";
 import { h, patch } from "./dom.js";
 import { tail } from "./format.js";
 import { renderClocks } from "./clocks.js";
+import { initHost } from "./host.js";
 import { renderInterrupts } from "./irqs.js";
 import { renderMemory } from "./memory.js";
 import { renderOverview } from "./overview.js";
@@ -167,4 +168,5 @@ api.events(
   },
 );
 rerender();
+initHost();
 void refresh();

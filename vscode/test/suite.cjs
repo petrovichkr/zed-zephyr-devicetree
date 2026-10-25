@@ -76,4 +76,14 @@ exports.run = async function run() {
     console.log(`  ${Object.keys(model.nodes).length} nodes`);
     assert.ok(Object.keys(model.nodes).length > 10);
   });
+
+  await step("points the open panel at the new companion after a restart", async () => {
+    const before = api.visualEditorUrl();
+    await vscode.commands.executeCommand("zephyrDevicetree.restartServer");
+    const after = await until("new visual editor URL", async () => {
+      const u = api.visualEditorUrl();
+      return u && u !== before && u;
+    });
+    assert.equal((await get(after)).status, 200);
+  });
 };

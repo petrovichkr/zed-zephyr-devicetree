@@ -23,7 +23,8 @@
   "activationEvents": [
     "onLanguage:dts",
     "workspaceContains:**/build_info.yml",
-    "workspaceContains:.west/config"
+    "workspaceContains:.west/config",
+    "onWebviewPanel:zephyrDevicetree.visualEditor"
   ],
   "contributes": {
     "languages": [

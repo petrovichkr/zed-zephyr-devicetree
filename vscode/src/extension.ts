@@ -8,13 +8,14 @@
 import * as vscode from "vscode";
 import {
   LanguageClient,
+  State,
   TransportKind,
   type ClientCapabilities,
   type LanguageClientOptions,
   type ServerOptions,
   type StaticFeature,
 } from "vscode-languageclient/node";
-import { VisualEditorPanel } from "./webview";
+import { VIEW_TYPE, VisualEditorPanel } from "./webview";
 
 // Must match companion/src/proxy.ts.
 const SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
@@ -34,6 +35,8 @@ interface ContextItem {
 let dts: LanguageClient | undefined;
 let bindings: LanguageClient | undefined;
 const panel = new VisualEditorPanel();
+/** Set while the panel is pointed at a new companion URL without taking focus. */
+let quietOpen = false;
 let status: vscode.StatusBarItem;
 let log: vscode.OutputChannel;
 
@@ -52,6 +55,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Zephyr
     log,
     status,
     { dispose: () => panel.dispose() },
+    // After a reload VS Code brings the panel back; it shows the UI once the server runs.
+    vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
+      async deserializeWebviewPanel(restored) {
+        panel.adopt(restored);
+        if (!config().get<boolean>("languageServer.enable", true)) panel.detach("The devicetree language server is turned off (zephyrDevicetree.languageServer.enable).");
+        else void refreshPanel();
+      },
+    }),
     vscode.commands.registerCommand("zephyrDevicetree.openVisualEditor", () => run(OPEN_UI_COMMAND)),
     vscode.commands.registerCommand("zephyrDevicetree.switchContext", () => switchContext()),
     vscode.commands.registerCommand("zephyrDevicetree.restartServer", () => restart(context)),
@@ -104,6 +115,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
 async function stop(): Promise<void> {
   const clients = [dts, bindings];
   dts = bindings = undefined;
+  if (panel.isOpen) panel.detach("The devicetree language server is not running.");
   status?.hide();
   await Promise.all(clients.map((c) => c?.stop().catch(() => undefined)));
 }
@@ -154,9 +166,15 @@ function devicetreeClient(context: vscode.ExtensionContext, companion: string): 
   const client = new LanguageClient("zephyrDevicetree.devicetree", "Zephyr Devicetree", serverOptions, clientOptions);
   client.registerFeature(new CompanionFeature());
   client.onRequest(SHOW_UI_REQUEST, async ({ url }: { url: string }) => {
-    if (config().get("visualEditor.openIn") === "browser") return { success: false }; // the companion opens a browser
-    await panel.show(url);
+    // the companion then opens a browser; a panel restored from a reload stays a panel
+    if (config().get("visualEditor.openIn") === "browser" && !quietOpen) return { success: false };
+    await panel.show(url, !quietOpen);
     return { success: true };
+  });
+  // A new companion (start, restart, crash recovery) serves the UI on a new port.
+  client.onDidChangeState((e) => {
+    if (e.newState === State.Running) void refreshPanel();
+    else if (e.newState === State.Stopped && panel.isOpen) panel.detach("The devicetree language server stopped.");
   });
   for (const n of ["devicetree/newActiveContext", "devicetree/contextDeleted", "devicetree/activeContextStableNotification"]) {
     client.onNotification(n, () => void refreshStatus());
@@ -185,6 +203,17 @@ async function run(command: string, args: unknown[] = []): Promise<void> {
     await dts.sendRequest("workspace/executeCommand", { command, arguments: args });
   } catch (e) {
     void vscode.window.showErrorMessage(`Zephyr Devicetree: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/** Points an open panel at the running companion's UI. */
+async function refreshPanel(): Promise<void> {
+  if (!panel.isOpen || !dts?.isRunning()) return;
+  quietOpen = true;
+  try {
+    await run(OPEN_UI_COMMAND);
+  } finally {
+    quietOpen = false;
   }
 }
 
