@@ -124,7 +124,9 @@ async function addPartition(m: UiMemory, gap: { offset: number; size: number }):
 
 function column(m: UiMemory): HTMLElement {
   const lanes = Math.max(1, ...m.segments.map((x) => x.lane + 1));
-  const y = scale(m);
+  // addresses grow upwards: offset 0 at the bottom, a block is drawn from its end
+  const fromTop = scale(m);
+  const y = (o: number): number => heightOf(m) - fromTop(o);
   const width = GUTTER + lanes * LANE_W + 8;
   const out: SVGElement[] = [];
   const top = 8;
@@ -133,6 +135,7 @@ function column(m: UiMemory): HTMLElement {
     .filter((o) => o <= Math.max(m.size, 0) || m.size === 0)
     .sort((a, b) => a - b);
   let lastY = -100;
+  bounds.reverse(); // top to bottom, so the collision check walks down the column
   for (const o of bounds) {
     const yy = top + y(o);
     out.push(s("line", { class: "tick", x1: GUTTER - 6, y1: yy, x2: GUTTER, y2: yy }));
@@ -142,8 +145,8 @@ function column(m: UiMemory): HTMLElement {
     }
   }
   m.gaps.forEach((g) => {
-    const y0 = top + y(g.offset);
-    const h0 = y(g.offset + g.size) - y(g.offset);
+    const y0 = top + y(g.offset + g.size);
+    const h0 = y(g.offset) - y(g.offset + g.size);
     const add = !!m.partitions && canEdit();
     // in RAM a gap is just the part of the region no sub-region claims, not free space
     const what = m.kind === "flash" ? "free" : m.segments.length ? "rest of region" : m.name;
@@ -158,8 +161,8 @@ function column(m: UiMemory): HTMLElement {
     );
   });
   m.segments.forEach((x, i) => {
-    const y0 = top + y(x.offset);
-    const h0 = Math.max(4, y(x.offset + x.size) - y(x.offset));
+    const y0 = top + y(x.offset + x.size);
+    const h0 = Math.max(4, y(x.offset) - y(x.offset + x.size));
     const cls = `mseg c${i % 6}${x.disabled ? " off" : ""}${x.overlap ? " overlap" : ""}${state.selected === x.path ? " selected" : ""}`;
     const tags = [humanSize(x.size), x.readOnly ? "read-only" : "", ...x.chosen].filter(Boolean).join(" · ");
     out.push(
