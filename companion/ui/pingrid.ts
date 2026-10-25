@@ -6,7 +6,7 @@
 // The pins a function can reach are highlighted while dragging.
 
 import type { UiModel } from "../src/ui/model.js";
-import { allowedPins } from "../src/ui/pinedits.js";
+import { allowedPins, pinctrlOwners, suggestOwner } from "../src/ui/pinedits.js";
 import type { UiPinUsage } from "../src/ui/pins.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
@@ -57,6 +57,43 @@ async function move(m: UiModel, u: UiPinUsage, to: string): Promise<void> {
   if (ok) state.pinFocus = to;
 }
 
+async function assign(m: UiModel, fn: string, pin: string, owner: string): Promise<void> {
+  if (!canEdit()) return;
+  const busy = [...new Set(m.pins.usages.filter((x) => x.pin === pin && x.owner !== owner && active(x)).map((x) => m.nodes[x.owner]?.name ?? x.owner))];
+  const name = m.nodes[owner]?.name ?? owner;
+  const text = `Route ${fn} of ${name} to ${pin}?\nThe change is written to ${basename(state.overlay)}.${busy.length ? `\n\n${pin} is already used by ${busy.join(", ")}: this creates a conflict.` : ""}`;
+  if (!confirm(text)) return;
+  const ok = await applyChange(
+    () => api.assignPin({ function: fn, pin, owner, overlay: state.overlay, force: busy.length > 0 }),
+    `${fn} routed to ${pin}`,
+    `Routing ${fn}`,
+  );
+  if (ok) state.assign = null;
+}
+
+function assignForm(m: UiModel, fn: string, pin: string): HTMLElement {
+  const a = state.assign!;
+  const suggested = suggestOwner(m, fn);
+  const owners = pinctrlOwners(m);
+  const label = (p: string) => {
+    const n = m.nodes[p];
+    return `${n?.labels[0] ? `${n.labels[0]}: ` : ""}${n?.name ?? p}${n?.disabled ? " (disabled)" : ""}`;
+  };
+  return h(
+    "div",
+    { class: "assign" },
+    h(
+      "select",
+      { "data-key": "assign-owner", value: a.owner, onchange: (e: Event) => ((a.owner = (e.target as HTMLSelectElement).value), rerender()) },
+      h("option", { value: "" }, "Peripheral…"),
+      suggested ? h("option", { value: suggested }, `${label(suggested)} (suggested)`) : null,
+      owners.filter((o) => o !== suggested).map((o) => h("option", { value: o }, label(o))),
+    ),
+    h("button", { class: "primary", disabled: !a.owner || !canEdit(), onclick: () => void assign(m, fn, pin, a.owner) }, "Assign"),
+    h("button", { onclick: () => ((state.assign = null), rerender()) }, "Cancel"),
+  );
+}
+
 /** Usages that can be moved: decoded pinctrl entries and GPIO entries. */
 const movable = (u: UiPinUsage) => !!u.function && (u.index !== undefined || !!u.ref || !!u.cell);
 
@@ -91,6 +128,7 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
       onclick: () => {
         state.pinFocus = pin;
         state.fnFilter = "";
+        state.assign = null;
         rerender();
       },
       ondragstart: (e: DragEvent) => {
@@ -212,7 +250,24 @@ function panel(m: UiModel): HTMLElement {
                             : h("button", { disabled: !canEdit(), title: canEdit() ? `Move ${fn} from ${u.pin} to ${pin}` : "Editing is disabled", onclick: () => void move(m, u, pin) }, "Move here"),
                         ),
                       )
-                    : h("span", { class: "muted" }, " unused"),
+                    : [
+                        h("span", { class: "muted" }, " unused "),
+                        state.assign?.fn === fn
+                          ? assignForm(m, fn, pin)
+                          : h(
+                              "button",
+                              {
+                                class: "small",
+                                disabled: !canEdit(),
+                                title: canEdit() ? `Route ${fn} to ${pin}` : "Editing is disabled",
+                                onclick: () => {
+                                  state.assign = { fn, owner: suggestOwner(m, fn) ?? "" };
+                                  rerender();
+                                },
+                              },
+                              "Assign…",
+                            ),
+                      ],
                 );
               }),
               shown.length > 200 ? h("li", { class: "muted" }, `… ${shown.length - 200} more, use the filter`) : null,

@@ -162,6 +162,18 @@ if (process.env.UI_CHECK) {
     const res = await (await api("/api/move-pin", { owner: mv.owner, function: mv.function, from: mv.pin, to, overlay })).json();
     console.log(`ui move-pin ${mv.function} ${mv.pin} -> ${to}:`, JSON.stringify(res), JSON.stringify(edits));
   }
+  // stage 7.2: route an unused function of an enabled peripheral to a free pin
+  const usedFns = new Set(model.pins.usages.map((u) => u.function));
+  const byLabel = new Map(Object.values(model.nodes).flatMap((n) => n.labels.map((l) => [l, n])));
+  for (const [fn, pinsOf] of Object.entries(cat.functions)) {
+    const owner = byLabel.get(fn.toLowerCase().split("_")[0]);
+    const pin = pinsOf.find((p) => !used.has(p));
+    if (usedFns.has(fn) || !owner || owner.disabled || !pin || !owner.props.some((p) => p.name === "pinctrl-0")) continue;
+    edits.length = 0;
+    const res = await (await api("/api/assign-pin", { function: fn, pin, owner: owner.path, overlay })).json();
+    console.log(`ui assign-pin ${fn} -> ${pin} (${owner.labels[0]}):`, JSON.stringify(res), JSON.stringify(edits));
+    break;
+  }
   // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
   const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
   console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);

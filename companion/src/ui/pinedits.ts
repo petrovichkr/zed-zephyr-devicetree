@@ -9,8 +9,13 @@
 //   GPIO   `*-gpios` of the owner: `&gpio0 15 FLAGS` -> `&gpio1 2 FLAGS`
 // Every pinctrl state of the owner that routes the function to the old pin
 // (default, sleep, ...) moves along.
+//
+// Assigning a function no node uses yet (planPinAssign) adds it to the default
+// state of the chosen owner: STM32 appends the HAL node to pinctrl-0, ESP32 and
+// nRF add a group to the default state node. An owner without pinctrl gets a new
+// `<label>_default` state under the pin controller plus pinctrl-0/pinctrl-names (D28).
 
-import type { UiModel } from "./model.js";
+import type { UiModel, UiNode } from "./model.js";
 import type { UiPinCatalog } from "./pinfunctions.js";
 import type { UiPinUsage } from "./pins.js";
 
@@ -30,7 +35,23 @@ export interface PropertyChange {
   value: string;
 }
 
-export type PinMovePlan = { changes: PropertyChange[] } | { error: string } | { conflict: string[] };
+export interface NewNode {
+  parent: string;
+  name: string;
+  label?: string;
+  props: { name: string; value: string }[];
+  children?: { name: string; props: { name: string; value: string }[] }[];
+}
+
+export type PinMovePlan = { changes: PropertyChange[]; nodes?: NewNode[] } | { error: string } | { conflict: string[] };
+
+export interface PinAssignRequest {
+  function: string;
+  pin: string;
+  owner: string;
+  overlay: string;
+  force?: boolean;
+}
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -119,4 +140,106 @@ export function planPinMove(model: UiModel, req: PinMoveRequest): PinMovePlan {
     }
     return `${u.property} of ${u.owner} cannot be edited here`;
   }
+}
+
+/** Nodes that take pinctrl states: their binding (pinctrl-device) or their own properties have pinctrl-0. */
+export function pinctrlOwners(model: UiModel): string[] {
+  return Object.values(model.nodes)
+    .filter((n) => n.props.some((p) => p.name === "pinctrl-0") || (n.binding && model.bindings[n.binding]?.props.some((p) => p.name === "pinctrl-0")))
+    .map((n) => n.path)
+    .sort();
+}
+
+// function prefixes whose peripheral label differs (STM32 HAL names vs Zephyr labels)
+const PREFIX_ALIASES: [RegExp, string][] = [
+  [/^spim(\d)/, "spi$1"],
+  [/^tim(\d+)/, "timers$1"],
+  [/^usb_otg_(fs|hs)/, "usbotg_$1"],
+  [/^sdio/, "sdmmc1"],
+];
+
+/** The peripheral a function most likely belongs to: `usart1_tx` -> usart1, `SPIM2_MOSI` -> spi2. */
+export function suggestOwner(model: UiModel, fn: string): string | undefined {
+  const owners = new Set(pinctrlOwners(model));
+  let f = fn.toLowerCase();
+  for (const [re, to] of PREFIX_ALIASES) f = f.replace(re, to);
+  let best: UiNode | undefined;
+  let bestLen = 0;
+  for (const n of Object.values(model.nodes)) {
+    for (const l of n.labels) {
+      if (l.length > bestLen && (f === l || f.startsWith(`${l}_`))) {
+        best = n;
+        bestLen = l.length;
+      }
+    }
+  }
+  if (!best) return undefined;
+  if (owners.has(best.path)) return best.path;
+  // timers: the PWM child takes the pins
+  return best.children.find((c) => owners.has(c));
+}
+
+const strings = (v: string) => [...v.matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
+
+export function planPinAssign(model: UiModel, req: PinAssignRequest): PinMovePlan {
+  const { pinCatalog: catalog, pins, nodes } = model;
+  const owner = nodes[req.owner];
+  if (!owner) return { error: `node ${req.owner} not found` };
+  if (!allowedPins(catalog, req.function).includes(req.pin)) return { error: `${req.function} cannot be routed to ${req.pin}` };
+  const busy = pins.usages.filter((u) => u.pin === req.pin && u.owner !== req.owner && !u.disabled && (u.state ?? "default") === "default");
+  if (busy.length && !req.force) return { conflict: [...new Set(busy.map((u) => u.owner))] };
+
+  const prop = (n: UiNode, name: string) => n.props.find((p) => p.name === name)?.value;
+  const names = strings(prop(owner, "pinctrl-names") ?? "");
+  const index = names.indexOf("default");
+  const stateProp = `pinctrl-${index < 0 ? 0 : index}`;
+  const current = prop(owner, stateProp);
+
+  if (catalog.vendor === "stm32") {
+    const label = catalog.labels[`${req.function}@${req.pin}`];
+    if (!label) return { error: `no pinctrl node for ${req.function} on ${req.pin}` };
+    if (current) {
+      if (new RegExp(`&${label}(?![\\w])`).test(current)) return { error: `${label} is already in ${stateProp}` };
+      return { changes: [{ node: owner.path, property: stateProp, value: current.replace(/\s*>(?![\s\S]*>)/, ` &${label}>`) }] };
+    }
+    return { changes: newStateProps(owner, `<&${label}>`) };
+  }
+
+  let cell: string;
+  if (catalog.vendor === "esp32") cell = `${req.function}_GPIO${/^GPIO(\d+)$/.exec(req.pin)?.[1]}`;
+  else if (catalog.vendor === "nrf") {
+    const m = /^P(\d+)\.(\d+)$/.exec(req.pin);
+    if (!m) return { error: `${req.pin} is not an nRF pin` };
+    cell = `NRF_PSEL(${req.function}, ${Number(m[1])}, ${Number(m[2])})`;
+  } else return { error: "pin assignment is supported for STM32, ESP32 and nRF" };
+  const property = catalog.vendor === "esp32" ? "pinmux" : "psels";
+
+  // existing default state: add a group to it
+  const ref = current && /&([A-Za-z_]\w*)/.exec(current)?.[1];
+  if (current) {
+    const state = ref && Object.values(nodes).find((n) => n.labels.includes(ref));
+    if (!state) return { error: `cannot find the pinctrl state ${ref ?? current} of ${owner.name}` };
+    const taken = new Set(state.children.map((c) => nodes[c]?.name));
+    let i = 1;
+    while (taken.has(`group${i}`)) i++;
+    return { changes: [], nodes: [{ parent: state.path, name: `group${i}`, props: [{ name: property, value: `<${cell}>` }] }] };
+  }
+
+  // no pinctrl yet: a new default state under the pin controller
+  const controller = Object.values(nodes).find((n) => n.compatible.some((c) => /-pinctrl$/.test(c)));
+  if (!controller) return { error: "no pin controller node found" };
+  const base = `${owner.labels[0] ?? owner.name.replace(/@.*/, "").replace(/[^\w]/g, "_")}_default`;
+  let label = base;
+  for (let i = 2; Object.values(nodes).some((n) => n.labels.includes(label) || n.path === `${controller.path}/${label}`); i++) label = `${base}_${i}`;
+  return {
+    changes: newStateProps(owner, `<&${label}>`),
+    nodes: [{ parent: controller.path, name: label, label, props: [], children: [{ name: "group1", props: [{ name: property, value: `<${cell}>` }] }] }],
+  };
+}
+
+function newStateProps(owner: UiNode, value: string): PropertyChange[] {
+  return [
+    { node: owner.path, property: "pinctrl-0", value },
+    { node: owner.path, property: "pinctrl-names", value: '"default"' },
+  ];
 }

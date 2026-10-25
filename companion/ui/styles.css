@@ -309,3 +309,6 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .pin-panel input[type="search"] { width: 100%; margin-bottom: 4px; }
 .pin-panel .fn-owner button { margin-left: 4px; font-size: 11px; padding: 0 6px; }
 .pin-panel .source { margin-top: 10px; }
+.pin-panel button.small { font-size: 11px; padding: 0 6px; }
+.pin-panel .assign { display: flex; gap: 4px; margin: 4px 0 2px 14px; }
+.pin-panel .assign select { flex: 1; min-width: 0; }

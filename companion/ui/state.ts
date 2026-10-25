@@ -56,6 +56,8 @@ export const state = {
   pinView: "grid" as "grid" | "table",
   /** Filter of the function list in the pin panel. */
   fnFilter: "",
+  /** Pin panel: unused function being assigned to the focused pin. */
+  assign: null as { fn: string; owner: string } | null,
   /** Buses tab: also list disabled buses that have no devices. */
   busShowAll: false,
   /** Overview tab: also draw disabled peripherals. */

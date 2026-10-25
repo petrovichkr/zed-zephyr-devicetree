@@ -12,7 +12,7 @@ import { isUnder } from "../zephyr.js";
 import { buildCatalog, type UiCatalogEntry } from "./catalog.js";
 import { planAddress, planChild, planEdit, type AddressRequest, type ChildRequest, type EditRequest, type WorkspaceEdit } from "./edits.js";
 import { buildModel, SourceCache, type Loc, type UiContext, type UiModel } from "./model.js";
-import { planPinMove, type PinMoveRequest } from "./pinedits.js";
+import { planPinAssign, planPinMove, type PinAssignRequest, type PinMovePlan, type PinMoveRequest } from "./pinedits.js";
 import type { UiBackend } from "./server.js";
 
 export interface EditorHooks {
@@ -152,21 +152,39 @@ export class EditorBackend implements UiBackend {
     return this.apply(req.overlay, req.nodePath, (node, src) => planAddress(node, req, src));
   }
 
-  async movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }> {
+  movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }> {
+    return this.applyPinPlan(req.overlay, req.to, (model) => planPinMove(model, req));
+  }
+
+  assignPin(req: PinAssignRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }> {
+    return this.applyPinPlan(req.overlay, req.pin, (model) => planPinAssign(model, req));
+  }
+
+  /** Writes a pin plan: changed properties via planEdit, new pinctrl nodes via planChild. */
+  private async applyPinPlan(
+    overlay: string,
+    pin: string,
+    make: (model: UiModel) => PinMovePlan,
+  ): Promise<{ applied: boolean; error?: string; conflict?: string[] }> {
     let conflict: string[] | undefined;
-    const res = await this.applyWith(req.overlay, (nodes, src) => {
-      const plan = planPinMove(this.cached!.model, req);
+    const res = await this.applyWith(overlay, (nodes, src) => {
+      const plan = make(this.cached!.model);
       if ("error" in plan) return plan.error;
       if ("conflict" in plan) {
         conflict = plan.conflict;
-        return `${req.to} is used by ${plan.conflict.join(", ")}`;
+        return `${pin} is used by ${plan.conflict.join(", ")}`;
       }
-      const uri = pathToFileURL(req.overlay).href;
+      const uri = pathToFileURL(overlay).href;
       const edits = [];
+      for (const n of plan.nodes ?? []) {
+        const parent = nodes[n.parent];
+        if (!parent) return `node ${n.parent} not found`;
+        edits.push(...(planChild(parent, { parentPath: n.parent, overlay, name: n.name, label: n.label, props: n.props, children: n.children }, src).changes[uri] ?? []));
+      }
       for (const c of plan.changes) {
         const node = nodes[c.node];
         if (!node) return `node ${c.node} not found`;
-        edits.push(...(planEdit(node, { nodePath: c.node, overlay: req.overlay, property: c.property, value: c.value }, src).changes[uri] ?? []));
+        edits.push(...(planEdit(node, { nodePath: c.node, overlay, property: c.property, value: c.value }, src).changes[uri] ?? []));
       }
       return { changes: { [uri]: edits } };
     });

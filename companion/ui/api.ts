@@ -51,6 +51,9 @@ export const movePin = async (req: {
   force?: boolean;
 }): Promise<Result & { conflict?: string[] }> => (await request("POST", "/api/move-pin", req)).json();
 
+export const assignPin = async (req: { function: string; pin: string; owner: string; overlay: string; force?: boolean }): Promise<Result & { conflict?: string[] }> =>
+  (await request("POST", "/api/assign-pin", req)).json();
+
 export function events(onChanged: (reason: string) => void, onConnection: (up: boolean) => void): EventSource {
   const es = new EventSource(`/api/events?t=${encodeURIComponent(token)}`);
   es.addEventListener("changed", (e) => {

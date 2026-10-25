@@ -73,6 +73,7 @@ createServer(async (req, res) => {
       return json(res, {});
     case "/api/catalog":
       return setTimeout(() => json(res, catalog[url.searchParams.get("bus")] ?? []), 500);
+    case "/api/assign-pin":
     case "/api/move-pin":
     case "/api/add-node":
     case "/api/address":

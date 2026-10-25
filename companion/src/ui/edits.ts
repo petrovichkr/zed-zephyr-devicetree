@@ -56,7 +56,11 @@ export interface ChildRequest {
   overlay: string;
   /** Node name with unit address, `accel@19`. */
   name: string;
+  /** Label to give the new node: `uart1_default: uart1_default { ... }`. */
+  label?: string;
   props: { name: string; value: string | true }[];
+  /** Nested nodes, one level: `group1 { pinmux = <...>; }`. */
+  children?: { name: string; props: { name: string; value: string | true }[] }[];
 }
 
 export interface AddressRequest {
@@ -100,7 +104,12 @@ export function planEdit(node: NodeSource, req: EditRequest, src: SourceCache): 
 
 /** A new child node, written into the parent's block in the overlay or a new `&parent { }`. */
 export function planChild(parent: NodeSource, req: ChildRequest, src: SourceCache): WorkspaceEdit {
-  const body = [`${req.name} {`, ...req.props.map((p) => `\t${statement(p.name, p.value)}`), "};"];
+  const body = [
+    `${req.label ? `${req.label}: ` : ""}${req.name} {`,
+    ...req.props.map((p) => `\t${statement(p.name, p.value)}`),
+    ...(req.children ?? []).flatMap((c) => [`\t${c.name} {`, ...c.props.map((p) => `\t\t${statement(p.name, p.value)}`), "\t};"]),
+    "};",
+  ];
   return { changes: { [pathToFileURL(req.overlay).href]: [insertInto(parent, req.parentPath, req.overlay, body, src)] } };
 }
 

@@ -108,6 +108,16 @@ describe("planChild", () => {
   });
 });
 
+describe("planChild with a label and nested groups", () => {
+  it("writes the label and one level of children", () => {
+    const pinctrl: NodeSource = { labels: ["pinctrl"], properties: [], nodes: [] };
+    const e = only(
+      planChild(pinctrl, { parentPath: "/pin-controller", overlay: OVERLAY, name: "spi2_default", label: "spi2_default", props: [], children: [{ name: "group1", props: [{ name: "pinmux", value: "<SPIM2_MOSI_GPIO7>" }] }] }, src()),
+    );
+    expect(e.newText).toBe("\n&pinctrl {\n\tspi2_default: spi2_default {\n\t\tgroup1 {\n\t\t\tpinmux = <SPIM2_MOSI_GPIO7>;\n\t\t};\n\t};\n};\n");
+  });
+});
+
 describe("planAddress", () => {
   const overlayText = ["&i2c1 {", "\taccel@19 {", "\t\treg = <0x19>;", "\t};", "};", ""].join("\n");
   const osrc = () => new SourceCache((f) => (f === OVERLAY ? overlayText : ""));
