@@ -174,6 +174,18 @@ if (process.env.UI_CHECK) {
     console.log(`ui assign-pin ${fn} -> ${pin} (${owner.labels[0]}):`, JSON.stringify(res), JSON.stringify(edits));
     break;
   }
+  // stage 8: clock tree, and a prescaler change written together with rcc clock-frequency
+  const clk = model.clocks;
+  if (clk) {
+    const f = (id) => clk.nodes.find((n) => n.id === id)?.hz;
+    console.log(`ui clocks: ${clk.part} ${clk.family}, SYSCLK ${f("sysclk") ?? f("cpu_src")}, HCLK ${clk.hclk}, declared ${clk.declared}, issues ${JSON.stringify(clk.issues.map((i) => i.message))}`);
+    const rcc = clk.nodes.find((n) => n.id === "ahb")?.path;
+    if (rcc) {
+      edits.length = 0;
+      const res = await (await api("/api/edits", { overlay, edits: [{ nodePath: rcc, property: "apb2-prescaler", value: "<4>" }, { nodePath: rcc, property: "ahb-prescaler", value: "<2>" }] })).json();
+      console.log("ui edits:", JSON.stringify(res), JSON.stringify(edits));
+    }
+  }
   // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
   const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
   console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);

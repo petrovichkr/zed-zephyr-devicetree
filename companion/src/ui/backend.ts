@@ -10,7 +10,7 @@ import type { DocumentStore } from "../documents.js";
 import type { Peer } from "../jsonrpc.js";
 import { isUnder } from "../zephyr.js";
 import { buildCatalog, type UiCatalogEntry } from "./catalog.js";
-import { planAddress, planChild, planEdit, type AddressRequest, type ChildRequest, type EditRequest, type WorkspaceEdit } from "./edits.js";
+import { planAddress, planChild, planEdit, planEdits, type AddressRequest, type ChildRequest, type EditRequest, type WorkspaceEdit } from "./edits.js";
 import { buildModel, SourceCache, type Loc, type UiContext, type UiModel } from "./model.js";
 import { planPinAssign, planPinMove, type PinAssignRequest, type PinMovePlan, type PinMoveRequest } from "./pinedits.js";
 import type { UiBackend } from "./server.js";
@@ -138,6 +138,21 @@ export class EditorBackend implements UiBackend {
 
   edit(req: EditRequest): Promise<{ applied: boolean; error?: string }> {
     return this.apply(req.overlay, req.nodePath, (node, src) => planEdit(node, req, src));
+  }
+
+  /** Several property edits in one overlay change (clock tree forms). */
+  editMany(overlay: string, edits: { nodePath: string; property: string; value: string | true | null }[]): Promise<{ applied: boolean; error?: string }> {
+    return this.applyWith(overlay, (nodes, src) => {
+      const uri = pathToFileURL(overlay).href;
+      const byNode = new Map<string, { property: string; value: string | true | null }[]>();
+      for (const e of edits) byNode.set(e.nodePath, [...(byNode.get(e.nodePath) ?? []), { property: e.property, value: e.value }]);
+      const out = [];
+      for (const [path, props] of byNode) {
+        if (!nodes[path]) return `node ${path} not found`;
+        out.push(...planEdits(nodes[path], path, overlay, props, src));
+      }
+      return { changes: { [uri]: out } };
+    });
   }
 
   addNode(req: ChildRequest): Promise<{ applied: boolean; error?: string }> {

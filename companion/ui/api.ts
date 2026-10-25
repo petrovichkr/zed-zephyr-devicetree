@@ -54,6 +54,9 @@ export const movePin = async (req: {
 export const assignPin = async (req: { function: string; pin: string; owner: string; overlay: string; force?: boolean }): Promise<Result & { conflict?: string[] }> =>
   (await request("POST", "/api/assign-pin", req)).json();
 
+export const editMany = async (overlay: string, edits: { nodePath: string; property: string; value: string | true | null }[]): Promise<Result> =>
+  (await request("POST", "/api/edits", { overlay, edits })).json();
+
 export function events(onChanged: (reason: string) => void, onConnection: (up: boolean) => void): EventSource {
   const es = new EventSource(`/api/events?t=${encodeURIComponent(token)}`);
   es.addEventListener("changed", (e) => {

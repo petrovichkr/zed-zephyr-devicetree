@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
+import { buildClocks, type UiClocks } from "./clocks.js";
 import { buildOverview, type UiOverview } from "./overview.js";
 import { buildPinCatalog, pinctrlInclude, type UiPinCatalog } from "./pinfunctions.js";
 import { buildPinMap, type UiPinMap } from "./pins.js";
@@ -89,6 +90,8 @@ export interface UiModel {
   pinCatalog: UiPinCatalog;
   buses: UiBus[];
   overview: UiOverview;
+  /** STM32 only. */
+  clocks?: UiClocks;
   memory: UiMemoryRegion[];
 }
 
@@ -249,6 +252,7 @@ export function buildModel(
     pinCatalog: buildPinCatalog(nodes, esp32Header(nodes, src, includePaths)),
     buses,
     overview: buildOverview(nodes, bindings, pins, buses),
+    clocks: buildClocks(nodes),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };
 }

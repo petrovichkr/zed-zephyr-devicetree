@@ -2,7 +2,7 @@
 
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { planAddress, planChild, planEdit, type NodeSource, type TextEdit } from "../src/ui/edits.js";
+import { planAddress, planChild, planEdit, planEdits, type NodeSource, type TextEdit } from "../src/ui/edits.js";
 import { SourceCache, valueText } from "../src/ui/model.js";
 
 const OVERLAY = "/ws/apps/app/sysbuild/mcuboot/boards/b.overlay";
@@ -105,6 +105,17 @@ describe("planChild", () => {
     expect(apply(text, e)).toBe(
       ["/* comment */", "&py25q128 {", '\tstatus = "disabled";', "\taccel@19 {", '\t\tcompatible = "st,lis2dh12";', "\t\treg = <0x19>;", "\t\twakeup-source;", "\t};", "};", ""].join("\n"),
     );
+  });
+});
+
+describe("planEdits", () => {
+  it("replaces the overlay's own assignments and puts the rest in one block", () => {
+    const e = planEdits(flash, "/soc/spi@60025000/flash@0", OVERLAY, [
+      { property: "status", value: '"okay"' },
+      { property: "a", value: "<1>" },
+      { property: "b", value: "<2>" },
+    ], src());
+    expect(e.map((x) => x.newText)).toEqual(['status = "okay";', "\ta = <1>;\n\tb = <2>;\n"]);
   });
 });
 

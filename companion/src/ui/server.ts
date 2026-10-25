@@ -23,6 +23,7 @@ export interface UiBackend {
   catalog(bus: string): Promise<UiCatalogEntry[]>;
   addNode(req: ChildRequest): Promise<{ applied: boolean; error?: string }>;
   setAddress(req: AddressRequest): Promise<{ applied: boolean; error?: string }>;
+  editMany(overlay: string, edits: { nodePath: string; property: string; value: string | true | null }[]): Promise<{ applied: boolean; error?: string }>;
   movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }>;
   assignPin(req: PinAssignRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }>;
 }
@@ -142,6 +143,15 @@ export class UiServer {
             force: b.force === true,
           }),
         );
+      }
+      case "POST /api/edits": {
+        const b = await body(req);
+        const edits = (Array.isArray(b.edits) ? b.edits : []).map((e: any) => ({
+          nodePath: String(e?.nodePath),
+          property: String(e?.property),
+          value: e?.value === true ? (true as const) : e?.value === null ? null : String(e?.value),
+        }));
+        return send(res, 200, await this.backend.editMany(String(b.overlay), edits));
       }
       case "POST /api/assign-pin": {
         const b = await body(req);

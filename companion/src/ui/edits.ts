@@ -102,6 +102,22 @@ export function planEdit(node: NodeSource, req: EditRequest, src: SourceCache): 
   return edit(insertInto(node, req.nodePath, req.overlay, [statement(req.property, req.value)], src));
 }
 
+/**
+ * Several properties of one node at once: assignments the overlay already has
+ * are replaced in place, the rest go into one block (not one block each).
+ */
+export function planEdits(node: NodeSource, nodePath: string, overlay: string, props: { property: string; value: string | true | null }[], src: SourceCache): TextEdit[] {
+  const edits: TextEdit[] = [];
+  const rest: string[] = [];
+  for (const p of props) {
+    const own = node.properties.filter((x) => x.name.value === p.property && sameFile(x.url, overlay)).at(-1);
+    if (own) edits.push({ range: own.range, newText: statement(p.property, p.value) });
+    else rest.push(statement(p.property, p.value));
+  }
+  if (rest.length) edits.push(insertInto(node, nodePath, overlay, rest, src));
+  return edits;
+}
+
 /** A new child node, written into the parent's block in the overlay or a new `&parent { }`. */
 export function planChild(parent: NodeSource, req: ChildRequest, src: SourceCache): WorkspaceEdit {
   const body = [

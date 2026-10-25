@@ -312,3 +312,30 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .pin-panel button.small { font-size: 11px; padding: 0 6px; }
 .pin-panel .assign { display: flex; gap: 4px; margin: 4px 0 2px 14px; }
 .pin-panel .assign select { flex: 1; min-width: 0; }
+
+/* Clocks tab */
+.clk-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(600px, 1fr) 380px; height: 100%; }
+.clk-graph { overflow: auto; padding: 10px; border-right: 1px solid var(--border); }
+.clk-svg { display: block; font: 12px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
+.clk-svg rect { fill: var(--bg2); stroke: var(--border); stroke-width: 1.5; }
+.clk-svg g.cbox { cursor: pointer; }
+.clk-svg g.cbox:hover rect { fill: var(--hover); }
+.clk-svg g.selected rect { fill: var(--sel); stroke: var(--accent); }
+.clk-svg .off rect { stroke-dasharray: 4 3; fill: var(--bg); }
+.clk-svg .off text { fill: var(--muted); }
+.clk-svg .error rect { stroke: var(--danger); stroke-width: 2; }
+.clk-svg .error .t2 { fill: var(--danger); }
+.clk-svg .t1 { fill: var(--fg); font-weight: 600; }
+.clk-svg .t2 { fill: var(--accent); font-family: var(--mono); font-size: 11px; }
+.clk-svg .edge { fill: none; stroke: var(--muted); stroke-width: 1.3; opacity: 0.8; }
+.clk-svg .edge.error { stroke: var(--danger); }
+.clk-svg .elabel { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+.clk-panel { overflow: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.clk-panel h2 { margin: 0; font-size: 15px; font-family: var(--mono); display: flex; gap: 8px; align-items: center; }
+.clk-panel h3 { margin: 10px 0 0; font-size: 13px; }
+.clk-issues { margin: 0; padding-left: 4px; list-style: none; }
+.ok-text { color: var(--ok); }
+.clk-params td { padding: 3px 6px 3px 0; }
+.clk-params tr.changed td:first-child { color: var(--warn); font-weight: 600; }
+.clk-params input[type="number"] { width: 110px; }
+.clk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }

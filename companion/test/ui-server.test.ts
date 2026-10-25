@@ -36,6 +36,10 @@ describe("UiServer", () => {
       edits.push(req);
       return { applied: true };
     },
+    editMany: async (overlay, list) => {
+      edits.push({ overlay, list });
+      return { applied: true };
+    },
     assignPin: async (req) => {
       edits.push(req);
       return { applied: true };

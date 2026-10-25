@@ -4,7 +4,7 @@ import type { UiCatalogEntry } from "../src/ui/catalog.js";
 import type { UiContext, UiModel } from "../src/ui/model.js";
 import * as api from "./api.js";
 
-export type Tab = "tree" | "overview" | "buses" | "memory" | "pins";
+export type Tab = "tree" | "overview" | "buses" | "memory" | "pins" | "clocks";
 
 export const CUSTOM = "\u0000custom";
 
@@ -58,6 +58,9 @@ export const state = {
   fnFilter: "",
   /** Pin panel: unused function being assigned to the focused pin. */
   assign: null as { fn: string; owner: string } | null,
+  /** Clocks tab: unsaved values by "path\0property" (null removes the property). */
+  clockDraft: new Map<string, string | null>(),
+  clockFocus: "",
   /** Buses tab: also list disabled buses that have no devices. */
   busShowAll: false,
   /** Overview tab: also draw disabled peripherals. */
