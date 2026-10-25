@@ -17,3 +17,9 @@ languages = ["Zephyr Devicetree"]
 
 [language_servers.devicetree-language-server.language_ids]
 "Zephyr Devicetree" = "devicetree"
+
+# Zephyr binding YAML (SPEC D22): attached to Zed's built-in YAML language; it
+# only answers for files inside a bindings directory.
+[language_servers.zephyr-bindings]
+name = "Zephyr Bindings"
+languages = ["YAML"]

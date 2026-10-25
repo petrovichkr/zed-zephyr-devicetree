@@ -38,10 +38,10 @@ var require_identity = __commonJS({
     var NODE_TYPE = Symbol.for("yaml.node.type");
     var isAlias = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
-    var isMap = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
+    var isMap2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
     var isPair = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === PAIR;
-    var isScalar = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
-    var isSeq = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
+    var isScalar2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
+    var isSeq2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
     function isCollection(node) {
       if (node && typeof node === "object")
         switch (node[NODE_TYPE]) {
@@ -62,7 +62,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    var hasAnchor = (node) => (isScalar(node) || isCollection(node)) && !!node.anchor;
+    var hasAnchor = (node) => (isScalar2(node) || isCollection(node)) && !!node.anchor;
     exports2.ALIAS = ALIAS;
     exports2.DOC = DOC;
     exports2.MAP = MAP;
@@ -74,11 +74,11 @@ var require_identity = __commonJS({
     exports2.isAlias = isAlias;
     exports2.isCollection = isCollection;
     exports2.isDocument = isDocument;
-    exports2.isMap = isMap;
+    exports2.isMap = isMap2;
     exports2.isNode = isNode;
     exports2.isPair = isPair;
-    exports2.isScalar = isScalar;
-    exports2.isSeq = isSeq;
+    exports2.isScalar = isScalar2;
+    exports2.isSeq = isSeq2;
   }
 });
 
@@ -1739,7 +1739,7 @@ var require_merge = __commonJS({
 var require_addPairToJSMap = __commonJS({
   "node_modules/yaml/dist/nodes/addPairToJSMap.js"(exports2) {
     "use strict";
-    var log3 = require_log();
+    var log4 = require_log();
     var merge = require_merge();
     var stringify = require_stringify();
     var identity = require_identity();
@@ -1788,7 +1788,7 @@ var require_addPairToJSMap = __commonJS({
           let jsonStr = JSON.stringify(strKey);
           if (jsonStr.length > 40)
             jsonStr = jsonStr.substring(0, 36) + '..."';
-          log3.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
+          log4.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
           ctx.mapKeyWarned = true;
         }
         return strKey;
@@ -4171,9 +4171,9 @@ var require_resolve_flow_collection = __commonJS({
     var blockMsg = "Block collections are not allowed within flow collections";
     var isBlock = (token) => token && (token.type === "block-map" || token.type === "block-seq");
     function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError, tag) {
-      const isMap = fc.start.source === "{";
-      const fcName = isMap ? "flow map" : "flow sequence";
-      const NodeClass = tag?.nodeClass ?? (isMap ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
+      const isMap2 = fc.start.source === "{";
+      const fcName = isMap2 ? "flow map" : "flow sequence";
+      const NodeClass = tag?.nodeClass ?? (isMap2 ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
       const coll = new NodeClass(ctx.schema);
       coll.flow = true;
       const atRoot = ctx.atRoot;
@@ -4209,7 +4209,7 @@ var require_resolve_flow_collection = __commonJS({
             offset = props.end;
             continue;
           }
-          if (!isMap && ctx.options.strict && utilContainsNewline.containsNewline(key))
+          if (!isMap2 && ctx.options.strict && utilContainsNewline.containsNewline(key))
             onError(
               key,
               // checked by containsNewline()
@@ -4249,7 +4249,7 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep2 && !props.found) {
+        if (!isMap2 && !sep2 && !props.found) {
           const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
@@ -4272,7 +4272,7 @@ var require_resolve_flow_collection = __commonJS({
             startOnNewline: false
           });
           if (valueProps.found) {
-            if (!isMap && !props.found && ctx.options.strict) {
+            if (!isMap2 && !props.found && ctx.options.strict) {
               if (sep2)
                 for (const st of sep2) {
                   if (st === valueProps.found)
@@ -4304,7 +4304,7 @@ var require_resolve_flow_collection = __commonJS({
           const pair = new Pair.Pair(keyNode, valueNode);
           if (ctx.options.keepSourceTokens)
             pair.srcToken = collItem;
-          if (isMap) {
+          if (isMap2) {
             const map = coll;
             if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
               onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
@@ -4320,7 +4320,7 @@ var require_resolve_flow_collection = __commonJS({
           offset = valueNode ? valueNode.range[2] : valueProps.end;
         }
       }
-      const expectedEnd = isMap ? "}" : "]";
+      const expectedEnd = isMap2 ? "}" : "]";
       const [ce, ...ee] = fc.end;
       let cePos = offset;
       if (ce && ce.source === expectedEnd)
@@ -5598,7 +5598,7 @@ var require_cst = __commonJS({
     var FLOW_END = "";
     var SCALAR = "";
     var isCollection = (token) => !!token && "items" in token;
-    var isScalar = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
+    var isScalar2 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
     function prettyToken(token) {
       switch (token) {
         case BOM:
@@ -5682,7 +5682,7 @@ var require_cst = __commonJS({
     exports2.FLOW_END = FLOW_END;
     exports2.SCALAR = SCALAR;
     exports2.isCollection = isCollection;
-    exports2.isScalar = isScalar;
+    exports2.isScalar = isScalar2;
     exports2.prettyToken = prettyToken;
     exports2.tokenType = tokenType;
   }
@@ -6271,7 +6271,7 @@ var require_lexer = __commonJS({
 var require_line_counter = __commonJS({
   "node_modules/yaml/dist/parse/line-counter.js"(exports2) {
     "use strict";
-    var LineCounter = class {
+    var LineCounter2 = class {
       constructor() {
         this.lineStarts = [];
         this.addNewLine = (offset) => this.lineStarts.push(offset);
@@ -6294,7 +6294,7 @@ var require_line_counter = __commonJS({
         };
       }
     };
-    exports2.LineCounter = LineCounter;
+    exports2.LineCounter = LineCounter2;
   }
 });
 
@@ -7172,7 +7172,7 @@ var require_public_api = __commonJS({
     var composer = require_composer();
     var Document = require_Document();
     var errors = require_errors();
-    var log3 = require_log();
+    var log4 = require_log();
     var identity = require_identity();
     var lineCounter = require_line_counter();
     var parser = require_parser();
@@ -7195,7 +7195,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
+    function parseDocument3(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -7221,10 +7221,10 @@ var require_public_api = __commonJS({
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument3(src, options);
       if (!doc)
         return null;
-      doc.warnings.forEach((warning) => log3.warn(doc.options.logLevel, warning));
+      doc.warnings.forEach((warning) => log4.warn(doc.options.logLevel, warning));
       if (doc.errors.length > 0) {
         if (doc.options.logLevel !== "silent")
           throw doc.errors[0];
@@ -7257,7 +7257,7 @@ var require_public_api = __commonJS({
     }
     exports2.parse = parse;
     exports2.parseAllDocuments = parseAllDocuments;
-    exports2.parseDocument = parseDocument;
+    exports2.parseDocument = parseDocument3;
     exports2.stringify = stringify;
   }
 });
@@ -7711,7 +7711,7 @@ function buildModel(context, serialized, memory, src = new SourceCache()) {
 }
 
 // src/ui/backend.ts
-var log = (...args2) => console.error("[companion]", ...args2);
+var log = (...args) => console.error("[companion]", ...args);
 var EditorBackend = class {
   constructor(h) {
     this.h = h;
@@ -7767,8 +7767,8 @@ var EditorBackend = class {
   }
 };
 function openExternal(url) {
-  const [cmd, args2] = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
-  (0, import_node_child_process.spawn)(cmd, args2, { detached: true, stdio: "ignore" }).unref();
+  const [cmd, args] = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  (0, import_node_child_process.spawn)(cmd, args, { detached: true, stdio: "ignore" }).unref();
 }
 function zedCli() {
   const names = process.platform === "win32" ? ["zed.exe", "zed.cmd"] : ["zed", "zeditor", "zedit"];
@@ -7800,12 +7800,12 @@ var UiServer = class {
   }
   async start() {
     if (this.port) return this.url;
-    const server2 = (0, import_node_http.createServer)((req, res) => {
+    const server = (0, import_node_http.createServer)((req, res) => {
       this.handle(req, res).catch((e) => send(res, 500, { error: String(e?.message ?? e) }));
     });
-    await new Promise((resolve4) => server2.listen(0, "127.0.0.1", resolve4));
-    this.port = server2.address().port;
-    server2.unref();
+    await new Promise((resolve4) => server.listen(0, "127.0.0.1", resolve4));
+    this.port = server.address().port;
+    server.unref();
     return this.url;
   }
   /** Tell every open page to refetch. */
@@ -7998,7 +7998,7 @@ function readManifestProjects(ws) {
 // src/proxy.ts
 var SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
 var OPEN_UI_COMMAND = "zephyr-devicetree.openVisualEditor";
-var log2 = (...args2) => console.error("[companion]", ...args2);
+var log2 = (...args) => console.error("[companion]", ...args);
 function filesOf(tree, out = /* @__PURE__ */ new Set()) {
   if (Array.isArray(tree)) tree.forEach((t) => filesOf(t, out));
   else if (tree && typeof tree === "object") {
@@ -8010,13 +8010,13 @@ function filesOf(tree, out = /* @__PURE__ */ new Set()) {
   return out;
 }
 var Proxy2 = class {
-  constructor(zed, server2) {
+  constructor(zed, server) {
     this.zed = zed;
-    this.server = server2;
+    this.server = server;
     this.ui = new UiServer(
       new EditorBackend({
         zed,
-        server: server2,
+        server,
         docs: this.docs,
         external: () => this.external,
         canShowDocument: () => this.canShowDocument
@@ -8234,21 +8234,488 @@ function rootOf(params) {
   return params?.rootPath ?? void 0;
 }
 
+// src/bindings/lsp.ts
+var import_node_fs9 = require("node:fs");
+var import_node_path7 = require("node:path");
+var import_node_url6 = require("node:url");
+var import_yaml4 = __toESM(require_dist(), 1);
+
+// src/bindings/binding.ts
+var import_node_fs8 = require("node:fs");
+var import_node_path6 = require("node:path");
+var import_yaml3 = __toESM(require_dist(), 1);
+
+// src/bindings/rules.ts
+var import_node_fs7 = require("node:fs");
+var import_node_path5 = require("node:path");
+var FALLBACK = {
+  topKeys: ["title", "description", "compatible", "bus", "on-bus", "class", "properties", "child-binding", "examples"],
+  propKeys: [
+    "description",
+    "type",
+    "required",
+    "enum",
+    "const",
+    "default",
+    "deprecated",
+    "specifier-space",
+    "min",
+    "max",
+    "min-len",
+    "max-len",
+    "dependency-mode"
+  ],
+  types: [
+    "boolean",
+    "int",
+    "array",
+    "uint8-array",
+    "string",
+    "string-array",
+    "phandle",
+    "phandles",
+    "phandle-array",
+    "path",
+    "compound"
+  ]
+};
+function pySet(src, name) {
+  const m = new RegExp(`\\b${name}\\s*=\\s*\\{([^}]*)\\}`).exec(src);
+  if (!m) return void 0;
+  const items = [...m[1].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]);
+  return items.length ? items : void 0;
+}
+function loadRules(zephyrBase) {
+  const file = zephyrBase && (0, import_node_path5.join)(zephyrBase, "scripts", "dts", "python-devicetree", "src", "devicetree", "edtlib.py");
+  const src = file && (0, import_node_fs7.existsSync)(file) ? (0, import_node_fs7.readFileSync)(file, "utf8") : "";
+  const top = pySet(src, "ok_top");
+  const prop = pySet(src, "ok_prop_keys");
+  const types = pySet(src, "ok_types");
+  return {
+    topKeys: new Set(top ?? FALLBACK.topKeys),
+    propKeys: new Set(prop ?? FALLBACK.propKeys),
+    types: new Set(types ?? FALLBACK.types),
+    source: top && prop && types ? file : "built-in (Zephyr 4.5)"
+  };
+}
+var INCLUDE_KEYS = /* @__PURE__ */ new Set(["name", "property-allowlist", "property-blocklist", "child-binding"]);
+
+// src/bindings/binding.ts
+var BindingIndex = class {
+  constructor(dirs) {
+    this.dirs = dirs;
+    for (const dir of dirs) this.scan(dir);
+  }
+  /** file name -> path; the first bindings dir wins, like edtlib. */
+  byName = /* @__PURE__ */ new Map();
+  /** compatible -> binding paths */
+  byCompatible = /* @__PURE__ */ new Map();
+  scan(dir) {
+    let entries;
+    try {
+      entries = (0, import_node_fs8.readdirSync)(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const path = (0, import_node_path6.join)(dir, e.name);
+      if (e.isDirectory()) this.scan(path);
+      else if (/\.ya?ml$/.test(e.name)) {
+        if (!this.byName.has(e.name)) this.byName.set(e.name, path);
+        const compatible = /^compatible:\s*["']?([^"'\s#]+)/m.exec(safeRead(path))?.[1];
+        if (compatible) this.byCompatible.set(compatible, [...this.byCompatible.get(compatible) ?? [], path]);
+      }
+    }
+  }
+  isBindingFile(file) {
+    return this.dirs.some((d) => file.startsWith(d + "/") || file.startsWith(d + "\\")) || /[\\/]dts[\\/]bindings[\\/]/.test(file);
+  }
+};
+function safeRead(file) {
+  try {
+    return (0, import_node_fs8.readFileSync)(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+var asList2 = (v) => Array.isArray(v) ? v.map(String) : void 0;
+function analyze(file, text, index, rules) {
+  const lc = new import_yaml3.LineCounter();
+  const doc = (0, import_yaml3.parseDocument)(text, { lineCounter: lc, keepSourceTokens: false, uniqueKeys: true });
+  const pos = (offset) => {
+    const p = lc.linePos(offset);
+    return { line: p.line - 1, character: p.col - 1 };
+  };
+  const rangeOf = (n) => {
+    const r = n?.range ?? [0, 0, 0];
+    return { start: pos(r[0]), end: pos(r[1]) };
+  };
+  const diagnostics = [];
+  const report = (n, message, severity = 1) => diagnostics.push({ range: rangeOf(n), severity, message, source: "zephyr-bindings" });
+  const targets = [];
+  for (const e of doc.errors) {
+    diagnostics.push({ range: { start: pos(e.pos[0]), end: pos(e.pos[1]) }, severity: 1, message: e.message, source: "zephyr-bindings" });
+  }
+  const includes = [];
+  const props = [];
+  let compatible;
+  const root = doc.contents;
+  if (!(0, import_yaml3.isMap)(root)) {
+    if (root) report(root, "a binding must be a mapping");
+    return { diagnostics, includes, props, compatible, at: () => void 0 };
+  }
+  const checkInclude = (n) => {
+    const add = (name, extra = {}) => {
+      const value = String(name.value);
+      const ref = { name: value, range: rangeOf(name), ...extra };
+      includes.push(ref);
+      targets.push({ kind: "include", name: value, range: ref.range });
+      if (!index.byName.has(value)) report(name, `included binding '${value}' not found in any bindings directory`);
+    };
+    if ((0, import_yaml3.isScalar)(n)) add(n);
+    else if ((0, import_yaml3.isSeq)(n)) {
+      for (const item of n.items) {
+        if ((0, import_yaml3.isScalar)(item)) add(item);
+        else if ((0, import_yaml3.isMap)(item)) {
+          const name = item.get("name", true);
+          for (const pair of item.items) {
+            const key = String(pair.key?.value);
+            if (!INCLUDE_KEYS.has(key)) report(pair.key, `unknown include key '${key}', expected one of ${[...INCLUDE_KEYS].join(", ")}`);
+          }
+          const allow = asList2(item.toJSON()["property-allowlist"]);
+          const block = asList2(item.toJSON()["property-blocklist"]);
+          if (allow && block) report(item, "include should not specify both 'property-allowlist:' and 'property-blocklist:'");
+          if ((0, import_yaml3.isScalar)(name)) add(name, { allow, block });
+          else report(item, "include entry needs 'name:'");
+        } else report(item, "include entries are file names or maps with 'name:'");
+      }
+    } else if (n) report(n, "'include:' must be a string or a list");
+  };
+  const checkProperties = (map, own) => {
+    if (!(0, import_yaml3.isMap)(map)) return;
+    for (const pair of map.items) {
+      const name = String(pair.key?.value);
+      if (own) props.push({ name, file, range: rangeOf(pair.key), options: pair.value?.toJSON?.() ?? {} });
+      targets.push({ kind: "property", name, range: rangeOf(pair.key) });
+      if (!(0, import_yaml3.isMap)(pair.value)) {
+        if (pair.value) report(pair.value, `'${name}': property options must be a mapping`);
+        continue;
+      }
+      for (const opt of pair.value.items) {
+        const key = String(opt.key?.value);
+        targets.push({ kind: "key", path: ["properties", name, key], range: rangeOf(opt.key) });
+        if (!rules.propKeys.has(key)) report(opt.key, `unknown key '${key}' in '${name}', expected one of ${[...rules.propKeys].join(", ")}`);
+        if (key === "type") {
+          targets.push({ kind: "type", range: rangeOf(opt.value) });
+          const t = String(opt.value?.value);
+          if (!rules.types.has(t)) report(opt.value, `'${t}' is not a valid type, expected one of ${[...rules.types].join(", ")}`);
+        }
+      }
+      const o = pair.value.toJSON();
+      if (o["specifier-space"] !== void 0 && o.type !== void 0 && o.type !== "phandle-array") {
+        report(pair.key, `'specifier-space' in '${name}' is only allowed for type phandle-array`);
+      }
+      if (o.deprecated && o.required) report(pair.key, `'${name}' is both deprecated and required`, 2);
+    }
+  };
+  const checkLevel = (map, top) => {
+    for (const pair of map.items) {
+      const key = String(pair.key?.value);
+      targets.push({ kind: "key", path: [key], range: rangeOf(pair.key) });
+      if (key !== "include" && !rules.topKeys.has(key) && !key.endsWith("-cells")) {
+        report(pair.key, `unknown key '${key}', expected one of ${[...rules.topKeys].join(", ")}, include or *-cells`);
+      }
+      if (key === "include") checkInclude(pair.value);
+      if (key === "properties") checkProperties(pair.value, top);
+      if (key === "child-binding" && (0, import_yaml3.isMap)(pair.value)) checkLevel(pair.value, false);
+      if (key === "compatible" && top && (0, import_yaml3.isScalar)(pair.value)) {
+        compatible = { value: String(pair.value.value), range: rangeOf(pair.value) };
+        targets.push({ kind: "compatible", ...compatible });
+      }
+    }
+  };
+  checkLevel(root, true);
+  if (compatible && includes.every((i) => index.byName.has(i.name))) {
+    const merged = resolveProperties(includes, index);
+    for (const p of props) {
+      if (p.options.type === void 0 && !merged.get(p.name)?.options.type) {
+        diagnostics.push({ range: p.range, severity: 1, message: `missing 'type:' for '${p.name}'`, source: "zephyr-bindings" });
+      }
+    }
+  }
+  const inside = (r, p) => (p.line > r.start.line || p.line === r.start.line && p.character >= r.start.character) && (p.line < r.end.line || p.line === r.end.line && p.character <= r.end.character);
+  return {
+    diagnostics,
+    includes,
+    props,
+    compatible,
+    at: (p) => targets.filter((t) => inside(t.range, p)).at(-1)
+  };
+}
+function resolveProperties(includes, index, depth = 0, seen = /* @__PURE__ */ new Set()) {
+  const out = /* @__PURE__ */ new Map();
+  if (depth > 16) return out;
+  for (const inc of includes) {
+    const path = index.byName.get(inc.name);
+    if (!path || seen.has(path)) continue;
+    const doc = (0, import_yaml3.parseDocument)(safeRead(path)).toJSON() ?? {};
+    const nested = [];
+    const raw = doc.include;
+    for (const item of raw === void 0 ? [] : [raw].flat()) {
+      if (typeof item === "string") nested.push({ name: item, range: zero });
+      else if (item?.name) nested.push({ name: item.name, range: zero, allow: asList2(item["property-allowlist"]), block: asList2(item["property-blocklist"]) });
+    }
+    const all = new Map([...resolveProperties(nested, index, depth + 1, /* @__PURE__ */ new Set([...seen, path]))]);
+    for (const [name, options] of Object.entries(doc.properties ?? {})) {
+      const prev = all.get(name);
+      all.set(name, { name, file: path, range: zero, options: { ...prev?.options ?? {}, ...options } });
+    }
+    for (const [name, def] of all) {
+      if (inc.allow && !inc.allow.includes(name)) continue;
+      if (inc.block?.includes(name)) continue;
+      const prev = out.get(name);
+      out.set(name, prev ? { ...def, options: { ...prev.options, ...def.options } } : def);
+    }
+  }
+  return out;
+}
+var zero = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+
+// src/bindings/lsp.ts
+var log3 = (...args) => console.error("[bindings]", ...args);
+var SKIP_DIRS = /^(\.|node_modules$|build|twister|__pycache__$)/;
+var BindingsServer = class {
+  constructor(client) {
+    this.client = client;
+  }
+  ws;
+  index = new BindingIndex([]);
+  rules = loadRules();
+  docs = /* @__PURE__ */ new Map();
+  ready = Promise.resolve();
+  handle(msg) {
+    if (this.client.settle(msg)) return;
+    const reply = (result) => msg.id !== void 0 && this.client.send({ id: msg.id, result });
+    const p = msg.params;
+    switch (msg.method) {
+      case "initialize": {
+        const uri = p?.workspaceFolders?.[0]?.uri ?? p?.rootUri;
+        this.ready = this.load(uri ? (0, import_node_url6.fileURLToPath)(uri) : process.cwd());
+        return void reply({
+          capabilities: {
+            textDocumentSync: { openClose: true, change: 1, save: true },
+            hoverProvider: true,
+            definitionProvider: true,
+            referencesProvider: true,
+            completionProvider: { triggerCharacters: [":", " "] }
+          },
+          serverInfo: { name: "zephyr-bindings" }
+        });
+      }
+      case "textDocument/didOpen":
+        this.docs.set(p.textDocument.uri, p.textDocument.text);
+        return void this.ready.then(() => this.publish(p.textDocument.uri));
+      case "textDocument/didChange":
+        this.docs.set(p.textDocument.uri, p.contentChanges.at(-1).text);
+        return void this.ready.then(() => this.publish(p.textDocument.uri));
+      case "textDocument/didSave":
+        return void (this.ready = this.ready.then(() => this.reindex()));
+      case "textDocument/didClose":
+        this.docs.delete(p.textDocument.uri);
+        return void this.client.notify("textDocument/publishDiagnostics", { uri: p.textDocument.uri, diagnostics: [] });
+      case "textDocument/hover":
+        return void this.ready.then(() => reply(this.hover(p.textDocument.uri, p.position)));
+      case "textDocument/definition":
+        return void this.ready.then(() => reply(this.definition(p.textDocument.uri, p.position)));
+      case "textDocument/references":
+        return void this.ready.then(() => reply(this.references(p.textDocument.uri, p.position)));
+      case "textDocument/completion":
+        return void this.ready.then(() => reply(this.completion(p.textDocument.uri, p.position)));
+      case "shutdown":
+        return void reply(null);
+      case "exit":
+        return process.exit(0);
+      default:
+        if (msg.id !== void 0 && msg.method) this.client.send({ id: msg.id, error: { code: -32601, message: `unsupported: ${msg.method}` } });
+    }
+  }
+  async load(root) {
+    this.ws = await loadWorkspace(root);
+    this.rules = loadRules(this.ws?.zephyrBase);
+    this.reindex();
+    log3(`rules: ${this.rules.source}; ${this.index.byName.size} bindings in ${this.index.dirs.length} dirs`);
+  }
+  reindex() {
+    if (!this.ws) return;
+    const dirs = new Set(restrictedDefaults(this.ws, workspaceModules(this.ws)).defaultZephyrBindings);
+    for (const b of discoverBuilds(this.ws.topdir)) b.zephyrBindings.forEach((d) => dirs.add(d));
+    this.index = new BindingIndex([...dirs]);
+  }
+  analysis(uri) {
+    if (!uri.startsWith("file:")) return void 0;
+    const file = (0, import_node_url6.fileURLToPath)(uri);
+    if (!this.index.isBindingFile(file)) return void 0;
+    const text = this.docs.get(uri) ?? (0, import_node_fs9.readFileSync)(file, "utf8");
+    return { file, text, a: analyze(file, text, this.index, this.rules) };
+  }
+  publish(uri) {
+    const r = this.analysis(uri);
+    if (r) this.client.notify("textDocument/publishDiagnostics", { uri, diagnostics: r.a.diagnostics });
+  }
+  merged(uri) {
+    const r = this.analysis(uri);
+    return r && { ...r, inherited: resolveProperties(r.a.includes, this.index) };
+  }
+  hover(uri, pos) {
+    const r = this.merged(uri);
+    const t = r?.a.at(pos);
+    if (!r || !t) return null;
+    if (t.kind === "include") {
+      const path = this.index.byName.get(t.name);
+      if (!path) return null;
+      const description = String((0, import_yaml4.parseDocument)((0, import_node_fs9.readFileSync)(path, "utf8")).toJSON()?.description ?? "").trim();
+      const props = [...resolveProperties([{ name: t.name, range: t.range }], this.index).values()];
+      return md(
+        `**${t.name}**  
+\`${path}\`
+
+${description ?? ""}
+
+` + (props.length ? `Properties: ${props.map((p) => `\`${p.name}\``).join(", ")}` : ""),
+        t.range
+      );
+    }
+    if (t.kind === "property") {
+      const own = r.a.props.find((p) => p.name === t.name);
+      const base = r.inherited.get(t.name);
+      const o = { ...base?.options ?? {}, ...own?.options ?? {} };
+      const lines = [
+        `**${t.name}**: \`${o.type ?? "?"}\`${o.required ? " \u2014 required" : ""}${o.deprecated ? " \u2014 deprecated" : ""}`,
+        o.enum ? `enum: ${o.enum.map((v) => `\`${v}\``).join(", ")}` : "",
+        o.default !== void 0 ? `default: \`${JSON.stringify(o.default)}\`` : "",
+        typeof o.description === "string" ? o.description.trim() : "",
+        base ? `_inherited from \`${base.file}\`_` : ""
+      ];
+      return md(lines.filter(Boolean).join("\n\n"), t.range);
+    }
+    return null;
+  }
+  definition(uri, pos) {
+    const r = this.merged(uri);
+    const t = r?.a.at(pos);
+    if (!r || !t) return null;
+    if (t.kind === "include") {
+      const path = this.index.byName.get(t.name);
+      return path ? location(path, 0, 0) : null;
+    }
+    if (t.kind === "property") {
+      const base = r.inherited.get(t.name);
+      if (!base) return null;
+      const line = (0, import_node_fs9.readFileSync)(base.file, "utf8").split(/\r?\n/).findIndex((l) => new RegExp(`^\\s+${escape(t.name)}:`).test(l));
+      return location(base.file, Math.max(line, 0), 0);
+    }
+    return null;
+  }
+  /** `compatible:` -> every devicetree source that uses it. */
+  references(uri, pos) {
+    const r = this.analysis(uri);
+    const t = r?.a.at(pos);
+    if (!r || t?.kind !== "compatible" || !this.ws) return null;
+    const needle = `"${t.value}"`;
+    const out = [];
+    const roots = [this.ws.topdir, ...this.ws.zephyrBase && !this.ws.zephyrBase.startsWith(this.ws.topdir) ? [this.ws.zephyrBase] : []];
+    for (const file of roots.flatMap((root) => [...walkDts(root)])) {
+      let text;
+      try {
+        text = (0, import_node_fs9.readFileSync)(file, "utf8");
+      } catch {
+        continue;
+      }
+      if (!text.includes(needle)) continue;
+      text.split(/\r?\n/).forEach((line, i) => {
+        const c = line.indexOf(needle);
+        if (c >= 0 && /compatible/.test(line)) out.push(location(file, i, c, c + needle.length));
+      });
+    }
+    return out;
+  }
+  completion(uri, pos) {
+    const r = this.analysis(uri);
+    if (!r) return null;
+    const line = r.text.split(/\r?\n/)[pos.line] ?? "";
+    const before = line.slice(0, pos.character);
+    const indent = /^\s*/.exec(line)[0].length;
+    const items = (labels, kind, suffix = "") => [...labels].map((label) => ({ label, kind, insertText: label + suffix }));
+    if (/^\s*type:\s*\S*$/.test(before)) return items(this.rules.types, 12);
+    if (/^\s*(-\s+|include:\s*|name:\s*)[\w.,-]*$/.test(before) && this.inInclude(r.text, pos.line)) {
+      return items(this.index.byName.keys(), 17);
+    }
+    if (!/^\s*[\w#,.-]*$/.test(before)) return null;
+    if (indent === 0) return items([...this.rules.topKeys, "include"], 10, ": ");
+    if (indent >= 4 && this.inProperties(r.text, pos.line)) return items(this.rules.propKeys, 10, ": ");
+    return null;
+  }
+  inInclude(text, line) {
+    const lines = text.split(/\r?\n/);
+    for (let i = line; i >= 0; i--) {
+      const l = lines[i];
+      if (/^include:/.test(l)) return true;
+      if (/^\S/.test(l) && i !== line) return false;
+    }
+    return false;
+  }
+  inProperties(text, line) {
+    const lines = text.split(/\r?\n/);
+    for (let i = line - 1; i >= 0; i--) {
+      if (/^\S/.test(lines[i])) return /^properties:/.test(lines[i]);
+    }
+    return false;
+  }
+};
+function* walkDts(dir, depth = 0) {
+  if (depth > 12) return;
+  let entries;
+  try {
+    entries = (0, import_node_fs9.readdirSync)(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (e.isDirectory()) {
+      if (!SKIP_DIRS.test(e.name)) yield* walkDts((0, import_node_path7.join)(dir, e.name), depth + 1);
+    } else if (/\.(dts|dtsi|overlay|dtso)$/.test(e.name)) yield (0, import_node_path7.join)(dir, e.name);
+  }
+}
+var escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+var md = (value, range) => ({ contents: { kind: "markdown", value }, range });
+var location = (file, line, start, end = start) => ({
+  uri: (0, import_node_url6.pathToFileURL)(file).href,
+  range: { start: { line, character: start }, end: { line, character: end } }
+});
+
 // src/main.ts
 function parseArgs(argv) {
   const i = argv.indexOf("--server");
   if (i < 0 || !argv[i + 1]) throw new Error("--server <path> is required");
-  const server2 = argv[i + 1];
+  const server = argv[i + 1];
   const rest = argv.slice(i + 2).filter((a) => a !== "--stdio");
-  return { server: server2, args: [...rest, "--stdio"] };
+  return { server, args: [...rest, "--stdio"] };
 }
-var { server, args } = parseArgs(process.argv.slice(2));
-var isScript = /\.[cm]?js$/.test(server);
-var child = (0, import_node_child_process3.spawn)(isScript ? process.execPath : server, isScript ? [server, ...args] : args, {
-  stdio: ["pipe", "pipe", "inherit"]
-});
-child.on("exit", (code) => process.exit(code ?? 1));
-process.stdin.on("end", () => child.kill());
-var proxy = new Proxy2(new Peer(process.stdout, "zc-"), new Peer(child.stdin, "zc-"));
-readMessages(process.stdin, (m) => proxy.fromZed(m));
-readMessages(child.stdout, (m) => proxy.fromServer(m));
+if (process.argv.includes("--bindings")) {
+  const server = new BindingsServer(new Peer(process.stdout, "zb-"));
+  readMessages(process.stdin, (m) => server.handle(m));
+} else {
+  startProxy();
+}
+function startProxy() {
+  const { server, args } = parseArgs(process.argv.slice(2));
+  const isScript = /\.[cm]?js$/.test(server);
+  const child = (0, import_node_child_process3.spawn)(isScript ? process.execPath : server, isScript ? [server, ...args] : args, {
+    stdio: ["pipe", "pipe", "inherit"]
+  });
+  child.on("exit", (code) => process.exit(code ?? 1));
+  process.stdin.on("end", () => child.kill());
+  const proxy = new Proxy2(new Peer(process.stdout, "zc-"), new Peer(child.stdin, "zc-"));
+  readMessages(process.stdin, (m) => proxy.fromZed(m));
+  readMessages(child.stdout, (m) => proxy.fromServer(m));
+}

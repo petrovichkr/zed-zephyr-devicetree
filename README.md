@@ -2,7 +2,7 @@
 
 Zephyr devicetree support for the [Zed](https://zed.dev) editor, for every board Zephyr supports.
 
-Status: **stage 0** (see [docs/SPEC.md](docs/SPEC.md)). It provides:
+Status: MVP and Zephyr bindings support (stages 0–3 of [docs/SPEC.md](docs/SPEC.md)). It provides:
 
 - Syntax highlighting, outline and brackets for `.dts`, `.dtsi`, `.dtso` and `.overlay`
   ([tree-sitter-devicetree](https://github.com/joelspadin/tree-sitter-devicetree)).
@@ -10,9 +10,13 @@ Status: **stage 0** (see [docs/SPEC.md](docs/SPEC.md)). It provides:
   go-to-definition, references, rename, formatting and diagnostics.
 - Zero-config defaults for west workspaces: `zephyr.base` from `.west/config` (or `$ZEPHYR_BASE`)
   supplies the Zephyr include paths and bindings.
-
-Planned: contexts detected automatically from `build*/build_info.yml` (sysbuild included),
-a browser-based visual devicetree editor, and Zephyr YAML bindings support.
+- Build-aware contexts: every `build*/build_info.yml` (one per sysbuild image) becomes a
+  context, the newest build that contains the current file wins, and code actions
+  (`Ctrl+.`) switch between them.
+- A visual devicetree editor in the browser: code action "Devicetree: open visual editor".
+- Zephyr binding YAML: diagnostics with the rules of your Zephyr's `edtlib.py`, hover and
+  go-to-definition for `include:`, references from `compatible:` to devicetree sources.
+  "Go to Type Definition" on a devicetree node opens its binding.
 
 ## Install (development)
 

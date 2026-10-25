@@ -6,6 +6,7 @@ use zed_extension_api::{
 };
 
 const SERVER_ID: &str = "devicetree-language-server";
+const BINDINGS_SERVER_ID: &str = "zephyr-bindings";
 const NPM_PACKAGE: &str = "devicetree-language-server";
 /// Pinned on purpose: the companion relies on the server's `devicetree/*` custom API.
 const NPM_VERSION: &str = "0.14.3";
@@ -61,6 +62,13 @@ impl zed::Extension for ZephyrDevicetreeExtension {
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
         self.install(id)?;
+        if id.as_ref() == BINDINGS_SERVER_ID {
+            return Ok(zed::Command {
+                command: zed::node_binary_path()?,
+                args: vec![work_path(COMPANION_FILE)?, "--bindings".into()],
+                env: Default::default(),
+            });
+        }
         let binary = LspSettings::for_worktree(SERVER_ID, worktree)
             .ok()
             .and_then(|s| s.binary);
