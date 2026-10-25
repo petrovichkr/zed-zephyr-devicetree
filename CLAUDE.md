@@ -24,7 +24,9 @@ SPEC.md обновляется.
 ```
 extension.toml              # id, name, version, schema_version, [grammars.*], [language_servers.*]
 Cargo.toml                  # crate-type = ["cdylib"], zed_extension_api
-src/lib.rs                  # impl zed::Extension (language_server_command, initialization_options)
+src/lib.rs                  # impl zed::Extension: ставит dts-lsp, пишет и запускает companion
+companion/                  # Node/TS LSP-прокси (D15): src/{main,proxy,jsonrpc,west,zephyr}.ts, test/
+companion/dist/companion.cjs  # бандл, КОММИТИТСЯ (include_str! в lib.rs, D17)
 languages/devicetree/       # config.toml + highlights/brackets/indents/outline/injections.scm
 tests/fixtures/             # скелет структуры эталонного проекта (R8)
 docs/SPEC.md
@@ -38,11 +40,16 @@ https://zed.dev/docs/extensions/languages. API меняется, сверять�
 
 - Установка для отладки: в Zed выполнить `zed: install dev extension` и выбрать эту папку.
   Логи: `zed: open log` или `zed --foreground`.
+- **После правок в `companion/src`**: `cd companion && npm run typecheck && npm test && npm run build`,
+  затем `cargo build`. Без пересборки бандла Zed запустит старый companion.
 - Rust-часть собирается под `wasm32-wasip2` (`rustup target add wasm32-wasip2`).
 - Проверки: `cargo fmt --check`, `cargo clippy --target wasm32-wasip2`, `cargo test`.
 - После правки `.scm`: `scripts/check_queries.py <файлы эталона>` (venv с `tree-sitter` и
   собранной грамматикой). Невалидный запрос в Zed молча отключает подсветку.
-- Изменения в работе с LSP проверять без Zed через `scripts/smoke_lsp.mjs` на эталоне.
+- Изменения в работе с LSP проверять без Zed через `scripts/smoke_lsp.mjs` на эталоне
+  (`COMPANION=companion/dist/companion.cjs` — через companion, с пустыми user settings).
+- Custom-API dts-lsp смотреть в исходниках на теге версии из `NPM_VERSION`
+  (`server/src/server.ts`, раздел `CUSTOM APIS`), а не в минифицированном бандле.
 - В Zed одноимённые captures разрешаются в пользу **последнего** шаблона: общие правила идут первыми.
 
 ## Соглашения

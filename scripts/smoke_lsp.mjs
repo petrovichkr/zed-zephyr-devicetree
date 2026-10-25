@@ -7,6 +7,8 @@
 //
 // usage: smoke_lsp.mjs <server.js> <workspace-root> <file> [zephyr-base-rel] [ctx.json]
 //   ctx.json: optional array of dts-lsp contexts (to try build-derived contexts)
+// env COMPANION=<companion.js>: run the server behind the companion and send
+//   empty user settings, as a fresh Zed install would.
 
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -21,7 +23,7 @@ const base = join(root, baseRel);
 const dts = join(base, "dts");
 const arches = ["arc", "arm", "arm64", "nios2", "posix", "riscv", "rx", "sparc", "tricore", "x86", "xtensa"];
 
-const settings = {
+const settings = process.env.COMPANION ? {} : {
   cwd: root,
   defaultBindingType: "Zephyr",
   autoChangeContext: true,
@@ -32,7 +34,8 @@ const settings = {
   ...(ctxFile ? { contexts: JSON.parse(readFileSync(ctxFile, "utf8")) } : {}),
 };
 
-const child = spawn("node", [server, "--stdio"], { stdio: ["pipe", "pipe", "inherit"] });
+const cmd = process.env.COMPANION ? [process.env.COMPANION, "--server", server] : [server];
+const child = spawn("node", [...cmd, "--stdio"], { stdio: ["pipe", "pipe", "inherit"] });
 let buf = Buffer.alloc(0);
 let nextId = 1;
 const pending = new Map();
@@ -97,7 +100,9 @@ send({ method: "textDocument/didOpen", params: { textDocument: { uri, languageId
 
 await new Promise((r) => setTimeout(r, 15000));
 const contexts = await request("devicetree/getContexts", null);
-console.log(`after ${Date.now() - t0} ms, contexts:`, JSON.stringify(contexts, null, 1).slice(0, 1500));
+console.log(`after ${Date.now() - t0} ms, contexts:`, contexts.map((c) => `${c.active ? "*" : " "} ${c.ctxNames.join(",")}`).join("\n  "));
+const actions = await request("textDocument/codeAction", { textDocument: { uri }, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, context: { diagnostics: [] } });
+console.log("codeActions:", (actions ?? []).map((a) => a.title));
 const symbols = await request("textDocument/documentSymbol", { textDocument: { uri } });
 console.log(`documentSymbol: ${Array.isArray(symbols) ? symbols.length : JSON.stringify(symbols)}`);
 child.kill();

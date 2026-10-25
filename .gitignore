@@ -11,3 +11,7 @@
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Companion: dependencies are local; dist/companion.cjs IS committed because
+# src/lib.rs embeds it with include_str! when Zed builds the extension.
+/companion/node_modules/
