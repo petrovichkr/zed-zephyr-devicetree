@@ -24,6 +24,10 @@ export interface UiPort {
   /** Controller node and how to reference it in a cell: `&gpio0` or `&{/soc/i2c@1/gpio@20}`. */
   path: string;
   ref: string;
+  /** `gpio-line-names` by pin, empty names left out. */
+  lineNames?: Record<string, string>;
+  /** Pins in `gpio-reserved-ranges`: not usable. */
+  reserved?: string[];
   pins: string[];
   /** GPIO controller on a bus (expander): no pinctrl function can reach its pins. */
   external?: {
@@ -92,6 +96,18 @@ export function busAncestor(nodes: Record<string, UiNode>, bindings: Record<stri
   return undefined;
 }
 
+/** gpio-line-names and gpio-reserved-ranges of a controller, keyed by pin name. */
+function lineInfo(n: UiNode, pins: string[]): Pick<UiPort, "lineNames" | "reserved"> {
+  const out: Pick<UiPort, "lineNames" | "reserved"> = {};
+  const names = [...(n.props.find((p) => p.name === "gpio-line-names")?.value ?? "").matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
+  names.forEach((name, i) => {
+    if (name && pins[i]) (out.lineNames ??= {})[pins[i]!] = name;
+  });
+  const r = cells(n.props.find((p) => p.name === "gpio-reserved-ranges")?.value ?? "").map(Number);
+  for (let i = 0; i + 1 < r.length; i += 2) for (let k = r[i]!; k < r[i]! + r[i + 1]!; k++) if (pins[k]) (out.reserved ??= []).push(pins[k]!);
+  return out;
+}
+
 /** `ngpios` as written, else (for expanders) the binding's const/default. */
 function ngpios(n: UiNode, bindings?: Record<string, UiBinding>): number | undefined {
   const written = Number(cells(n.props.find((p) => p.name === "ngpios")?.value ?? "")[0]);
@@ -127,11 +143,13 @@ export function buildPinCatalog(
     const bus = busAncestor(nodes, bindings, n.path);
     if (bus) {
       const count = ngpios(n, bindings) ?? 32;
+      const pins = Array.from({ length: count }, (_, i) => gpioPin(n, name, String(i)));
       ports.push({
         name,
         path: n.path,
         ref,
-        pins: Array.from({ length: count }, (_, i) => gpioPin(n, name, String(i))),
+        pins,
+        ...lineInfo(n, pins),
         external: { path: n.path, compatible: n.compatible[0], bus: bus.path, address: /@(.+)$/.exec(n.name)?.[1] },
       });
       continue;
@@ -148,7 +166,8 @@ export function buildPinCatalog(
       // ngpios is plainly wrong then: lettered ports have 16 pins
       if (need > count) count = Math.max(need, 16);
     }
-    ports.push({ name, path: n.path, ref, pins: Array.from({ length: count }, (_, i) => gpioPin(n, name, String(i))) });
+    const pins = Array.from({ length: count }, (_, i) => gpioPin(n, name, String(i)));
+    ports.push({ name, path: n.path, ref, pins, ...lineInfo(n, pins) });
   }
   const order = (p: string) => p.replace(/\d+/g, (d) => d.padStart(4, "0"));
   // SoC ports first, then the expanders

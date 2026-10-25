@@ -50,7 +50,7 @@ const tree = [
     labels: ["gpio_exp0", "exp0"],
     compatible: ["nxp,pca9555"],
     binding: "pca9555",
-    p: { "gpio-controller": "", reg: "<0x20>", "int-gpios": "<&gpio0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>" },
+    p: { "gpio-controller": "", reg: "<0x20>", "gpio-line-names": '"", "", "", "LED_STATUS"', "gpio-reserved-ranges": "<14 2>", "int-gpios": "<&gpio0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>" },
   }),
   node("/leds", { compatible: ["gpio-leds"], binding: "leds", children: ["/leds/led_0"] }),
   node("/leds/led_0", { p: { gpios: "<&gpio_exp0 3 GPIO_ACTIVE_LOW>", label: '"Status"' } }),
@@ -88,6 +88,8 @@ describe("external GPIO controller", () => {
       ["gpio_exp0", 16, { path: "/soc/i2c@1/gpio@20", compatible: "nxp,pca9555", bus: "/soc/i2c@1", address: "20" }],
     ]);
     expect(catalog.ports[1]!.pins[15]).toBe("gpio_exp0.15");
+    expect(catalog.ports[1]).toMatchObject({ lineNames: { "gpio_exp0.3": "LED_STATUS" }, reserved: ["gpio_exp0.14", "gpio_exp0.15"] });
+    expect(allowedPins(catalog, "GPIO")).not.toContain("gpio_exp0.14");
   });
 
   it("takes GPIO owners but no pinctrl function, even where any pin is allowed", () => {

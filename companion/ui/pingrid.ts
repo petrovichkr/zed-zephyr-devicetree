@@ -42,6 +42,19 @@ function externalPort(m: UiModel, pin: string): UiPort | undefined {
   return externals.map.get(pin);
 }
 
+/** Line name (gpio-line-names) and reservation of a pin; computed once per model. */
+let lines: { model: UiModel; names: Map<string, string>; reserved: Set<string> } | null = null;
+function lineOf(m: UiModel, pin: string): { name?: string; reserved: boolean } {
+  if (lines?.model !== m) {
+    lines = { model: m, names: new Map(), reserved: new Set() };
+    for (const port of m.pinCatalog.ports) {
+      for (const [p, n] of Object.entries(port.lineNames ?? {})) lines.names.set(p, n);
+      for (const p of port.reserved ?? []) lines.reserved.add(p);
+    }
+  }
+  return { name: lines.names.get(pin), reserved: lines.reserved.has(pin) };
+}
+
 /** `pca9555 on i2c0 @0x20` */
 export function externalText(m: UiModel, port: UiPort): string {
   const e = port.external!;
@@ -147,6 +160,7 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
   const us = byPin.get(pin) ?? [];
   const main = us.find(active) ?? us.find(isDefault) ?? us[0];
   const ext = externalPort(m, pin);
+  const line = lineOf(m, pin);
   const reachable = !!ext || m.pinCatalog.anyPin || m.pinCatalog.vendor === "other" || us.length > 0 || functionsOn(m, pin).length > 0;
   const drag = us.find((u) => active(u) && movable(u)) ?? us.find(movable);
   const cls = [
@@ -156,11 +170,12 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
     conflicts.has(pin) ? "conflict" : "",
     reachable ? "" : "na",
     ext ? "ext" : "",
+    line.reserved ? "reserved" : "",
     state.pinFocus === pin ? "focus" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  const title = [pin, ...us.map((u) => `${u.function ?? "?"} — ${m.nodes[u.owner]?.name ?? u.owner} (${usageText(u)})${u.disabled ? ", disabled" : ""}`), reachable ? "" : "no function can use this pin", ext ? `GPIO only: ${externalText(m, ext)}` : ""]
+  const title = [pin, ...us.map((u) => `${u.function ?? "?"} — ${m.nodes[u.owner]?.name ?? u.owner} (${usageText(u)})${u.disabled ? ", disabled" : ""}`), line.name ? `line: ${line.name}` : "", line.reserved ? "reserved (gpio-reserved-ranges)" : "", reachable ? "" : "no function can use this pin", ext ? `GPIO only: ${externalText(m, ext)}` : ""]
     .filter(Boolean)
     .join("\n");
   return h(
@@ -202,6 +217,7 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
     },
     h("span", { class: "ptop" }, h("span", { class: "pnum" }, shortPin(pin)), main?.gpioFlags ? flagBadges(main.gpioFlags, true) : null),
     h("span", { class: "pfn" }, main?.function ? (gpioRole(m, main) ?? "").slice(0, 9) : ""),
+    line.name ? h("span", { class: "pline" }, line.name.slice(0, 9)) : null,
   );
 }
 
@@ -258,7 +274,14 @@ function panel(m: UiModel): HTMLElement {
   return h(
     "div",
     { class: "pin-panel", "data-scroll": "pin-panel" },
-    h("h2", null, pin, m.pins.conflicts.includes(pin) ? h("span", { class: "badge error" }, "conflict") : null),
+    h(
+      "h2",
+      null,
+      pin,
+      lineOf(m, pin).name ? h("span", { class: "muted line-name" }, ` ${lineOf(m, pin).name}`) : null,
+      lineOf(m, pin).reserved ? h("span", { class: "badge" }, "reserved") : null,
+      m.pins.conflicts.includes(pin) ? h("span", { class: "badge error" }, "conflict") : null,
+    ),
     h("h3", null, `Used by (${us.length})`),
     us.length ? h("ul", { class: "usages" }, us.map(usage)) : h("div", { class: "muted" }, "Free"),
     h("h3", null, m.pinCatalog.anyPin || ext ? "Functions" : `Functions this pin can take (${fns.length})`),

@@ -294,7 +294,7 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .prow { display: flex; gap: 3px; margin-bottom: 3px; align-items: stretch; }
 .plabel { width: 64px; flex: none; align-self: center; color: var(--muted); }
 .pcell {
-  width: 52px; height: 40px; flex: none; padding: 2px 3px; display: flex; flex-direction: column; align-items: flex-start;
+  width: 52px; height: 46px; flex: none; padding: 2px 3px; display: flex; flex-direction: column; align-items: flex-start;
   border: 1px solid var(--border); border-top: 4px solid var(--border); border-radius: 4px; background: var(--bg2); cursor: pointer; overflow: hidden;
 }
 .pcell:hover { background: var(--hover); }
@@ -399,3 +399,6 @@ main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
 .flag-btn:hover .flag { border-color: var(--accent); color: var(--fg); }
 .flag-editor { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 6px; font-size: 12px; }
 .outside ul { margin: 4px 0 0; padding-left: 18px; }
+.pcell .pline { font-size: 8.5px; color: var(--muted); white-space: nowrap; }
+.pcell.reserved { background: repeating-linear-gradient(135deg, var(--bg2) 0 4px, var(--border) 4px 5px); }
+.pin-panel .line-name { font-size: 12px; font-family: var(--mono); }
