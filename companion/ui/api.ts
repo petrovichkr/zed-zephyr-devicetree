@@ -42,6 +42,15 @@ export const addNode = async (req: ChildRequest): Promise<Result> => (await requ
 
 export const setAddress = async (req: AddressRequest): Promise<Result> => (await request("POST", "/api/address", req)).json();
 
+export const movePin = async (req: {
+  owner: string;
+  function: string;
+  from: string;
+  to: string;
+  overlay: string;
+  force?: boolean;
+}): Promise<Result & { conflict?: string[] }> => (await request("POST", "/api/move-pin", req)).json();
+
 export function events(onChanged: (reason: string) => void, onConnection: (up: boolean) => void): EventSource {
   const es = new EventSource(`/api/events?t=${encodeURIComponent(token)}`);
   es.addEventListener("changed", (e) => {

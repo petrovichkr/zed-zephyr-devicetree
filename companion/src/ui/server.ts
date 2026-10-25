@@ -12,6 +12,7 @@ import html from "../../dist/ui.html";
 import type { UiCatalogEntry } from "./catalog.js";
 import type { AddressRequest, ChildRequest, EditRequest } from "./edits.js";
 import type { Loc, UiContext, UiModel } from "./model.js";
+import type { PinMoveRequest } from "./pinedits.js";
 
 export interface UiBackend {
   contexts(): Promise<UiContext[]>;
@@ -22,6 +23,7 @@ export interface UiBackend {
   catalog(bus: string): Promise<UiCatalogEntry[]>;
   addNode(req: ChildRequest): Promise<{ applied: boolean; error?: string }>;
   setAddress(req: AddressRequest): Promise<{ applied: boolean; error?: string }>;
+  movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }>;
 }
 
 const MAX_BODY = 1 << 20;
@@ -123,6 +125,21 @@ export class UiServer {
           res,
           200,
           await this.backend.setAddress({ nodePath: String(b.nodePath), overlay: String(b.overlay), reg: String(b.reg), unit: String(b.unit) }),
+        );
+      }
+      case "POST /api/move-pin": {
+        const b = await body(req);
+        return send(
+          res,
+          200,
+          await this.backend.movePin({
+            owner: String(b.owner),
+            function: String(b.function),
+            from: String(b.from),
+            to: String(b.to),
+            overlay: String(b.overlay),
+            force: b.force === true,
+          }),
         );
       }
       default:

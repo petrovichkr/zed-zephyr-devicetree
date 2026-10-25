@@ -3,6 +3,7 @@
 import type { UiModel } from "../src/ui/model.js";
 import type { UiPinUsage } from "../src/ui/pins.js";
 import { h } from "./dom.js";
+import { renderPinGrid } from "./pingrid.js";
 import { locText, locTitle } from "./format.js";
 import { openLoc, rerender, select, state } from "./state.js";
 
@@ -29,7 +30,30 @@ function ownerCell(m: UiModel, path: string): HTMLElement {
   );
 }
 
+function viewSwitch(): HTMLElement {
+  const b = (v: typeof state.pinView, text: string) =>
+    h("button", { class: state.pinView === v ? "primary" : "", "aria-pressed": String(state.pinView === v), onclick: () => ((state.pinView = v), rerender()) }, text);
+  return h("span", { class: "vswitch" }, b("grid", "Grid"), b("table", "Table"));
+}
+
 export function renderPins(m: UiModel): HTMLElement {
+  if (state.pinView === "grid") {
+    return h(
+      "div",
+      { class: "pins grid-mode" },
+      h(
+        "div",
+        { class: "pin-bar" },
+        viewSwitch(),
+        h(
+          "span",
+          { class: m.pins.conflicts.length ? "summary error-text" : "summary muted" },
+          `${new Set(m.pins.usages.map((u) => u.pin)).size} pins used, ${m.pins.conflicts.length} conflict${m.pins.conflicts.length === 1 ? "" : "s"}`,
+        ),
+      ),
+      renderPinGrid(m),
+    );
+  }
   const { usages, conflicts, unknown } = m.pins;
   const conflict = new Set(conflicts);
   const q = state.pinFilter.trim().toLowerCase();
@@ -75,6 +99,7 @@ export function renderPins(m: UiModel): HTMLElement {
     h(
       "div",
       { class: "pin-bar" },
+      viewSwitch(),
       h("input", {
         type: "search",
         placeholder: "Filter pin, function, owner",

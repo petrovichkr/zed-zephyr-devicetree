@@ -36,6 +36,10 @@ describe("UiServer", () => {
       edits.push(req);
       return { applied: true };
     },
+    movePin: async (req) => {
+      edits.push(req);
+      return { applied: false, conflict: ["/soc/x"] };
+    },
   };
   const server = new UiServer(backend);
   let base: URL;

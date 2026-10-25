@@ -19,6 +19,14 @@ export interface UiPinUsage {
   state?: string; // pinctrl-names entry
   disabled: boolean;
   origin: Loc;
+  /** pinctrl node referenced from `pinctrl-N` (`&usart1_tx_pa9` -> usart1_tx_pa9). */
+  ref?: string;
+  /** Node whose pinmux/psels/pins property holds the cell (pinctrl state or group). */
+  source?: string;
+  /** The cell as written: `UART0_TX_GPIO43`, `NRF_PSEL(UART_TX, 0, 6)`, `&gpio0` for GPIOs. */
+  cell?: string;
+  /** For `*-gpios`: which entry of the property (0-based). */
+  index?: number;
 }
 
 export interface UiPinMap {
@@ -61,6 +69,9 @@ export function decodePinmux(cell: string): { pin: string; function?: string } |
   return undefined;
 }
 
+/** STM32 HAL node label without its pin suffix: `usart1_tx_pa9` -> `usart1_tx`. */
+export const labelFunction = (label: string): string => label.replace(/_p[a-z]\d+$/i, "").replace(/_p\d_\d+$/i, "");
+
 function pinFromLabel(label: string): string | undefined {
   let m = /_p([a-z])(\d+)$/i.exec(label);
   if (m) return `P${m[1]!.toUpperCase()}${m[2]}`;
@@ -96,9 +107,11 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
   const unknown: UiPinMap["unknown"] = [];
 
   /** pinmux/psels cells of a pinctrl state node and its group children. */
-  const pinctrlCells = (state: UiNode): { cell: string; prop: UiProp }[] =>
+  const pinctrlCells = (state: UiNode): { cell: string; prop: UiProp; node: string }[] =>
     [state, ...state.children.map((c) => nodes[c]).filter((c): c is UiNode => !!c)].flatMap((n) =>
-      n.props.filter((p) => p.name === "pinmux" || p.name === "psels" || p.name === "pins").flatMap((p) => cells(p.value).map((cell) => ({ cell, prop: p }))),
+      n.props
+        .filter((p) => p.name === "pinmux" || p.name === "psels" || p.name === "pins")
+        .flatMap((p) => cells(p.value).map((cell) => ({ cell, prop: p, node: n.path }))),
     );
 
   for (const owner of Object.values(nodes)) {
@@ -112,27 +125,41 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
           const target = byLabel.get(label);
           const decoded = target ? pinctrlCells(target) : [];
           let found = false;
-          for (const { cell, prop: src } of decoded) {
+          for (const { cell, prop: src, node } of decoded) {
             const d = decodePinmux(cell) ?? (pinFromLabel(label) ? { pin: pinFromLabel(label)! } : undefined);
             if (!d) {
               unknown.push({ owner: owner.path, property: prop.name, value: cell });
               continue;
             }
             found = true;
-            usages.push({ pin: d.pin, function: d.function ?? label, owner: owner.path, property: prop.name, state: stateName, disabled: owner.disabled, origin: src.origin });
+            usages.push({
+              pin: d.pin,
+              function: d.function ?? labelFunction(label),
+              owner: owner.path,
+              property: prop.name,
+              state: stateName,
+              disabled: owner.disabled,
+              origin: src.origin,
+              ref: label,
+              source: node,
+              cell,
+            });
           }
           if (!found && !decoded.length) {
             const pin = pinFromLabel(label);
-            if (pin) usages.push({ pin, function: label, owner: owner.path, property: prop.name, state: stateName, disabled: owner.disabled, origin: prop.origin });
+            if (pin) usages.push({ pin, function: labelFunction(label), owner: owner.path, property: prop.name, state: stateName, disabled: owner.disabled, origin: prop.origin, ref: label });
             else unknown.push({ owner: owner.path, property: prop.name, value: ref });
           }
         }
       } else if (/(^|-)gpios$/.test(prop.name)) {
         const c = cells(prop.value);
+        let index = 0;
         for (let i = 0; i < c.length; i++) {
           if (!c[i]!.startsWith("&") || c[i + 1] === undefined) continue;
           const label = c[i]!.slice(1);
           usages.push({
+            cell: c[i],
+            index: index++,
             pin: gpioPin(byLabel.get(label), label, c[i + 1]!),
             function: "GPIO",
             owner: owner.path,

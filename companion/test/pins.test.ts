@@ -78,7 +78,7 @@ describe("buildPinMap", () => {
       node("/pinctrl/odd", { labels: ["odd"], p: { pinmux: "<VENDOR_MUX(3)>" } }),
       node("/soc/usart1", { p: { "pinctrl-0": "<&usart1_tx_pa9 &odd>", "pinctrl-names": '"default"' } }),
     );
-    expect(m.usages.map((u) => `${u.pin} ${u.function}`)).toEqual(["PA9 usart1_tx_pa9"]);
+    expect(m.usages.map((u) => `${u.pin} ${u.function}`)).toEqual(["PA9 usart1_tx"]);
     expect(m.unknown).toEqual([{ owner: "/soc/usart1", property: "pinctrl-0", value: "VENDOR_MUX(3)" }]);
   });
 });

@@ -12,6 +12,7 @@ import { isUnder } from "../zephyr.js";
 import { buildCatalog, type UiCatalogEntry } from "./catalog.js";
 import { planAddress, planChild, planEdit, type AddressRequest, type ChildRequest, type EditRequest, type WorkspaceEdit } from "./edits.js";
 import { buildModel, SourceCache, type Loc, type UiContext, type UiModel } from "./model.js";
+import { planPinMove, type PinMoveRequest } from "./pinedits.js";
 import type { UiBackend } from "./server.js";
 
 export interface EditorHooks {
@@ -28,7 +29,7 @@ interface ContextListItem {
   id: string;
   ctxNames: string[];
   active: boolean;
-  settings?: { cwd?: string; overlays?: string[] };
+  settings?: { cwd?: string; overlays?: string[]; includePaths?: string[] };
 }
 
 const log = (...args: unknown[]) => console.error("[companion]", ...args);
@@ -44,6 +45,8 @@ export class EditorBackend implements UiBackend {
   private cached?: { generation: number; id: string; model: UiModel };
   private inflight?: { generation: number; promise: Promise<UiModel | undefined> };
   /** zephyrTypeBindings takes ~15 s and tens of MB on a full Zephyr tree: once per context. */
+  /** Include paths by context id, for headers the model reads (ESP32 pinctrl). */
+  private includePaths = new Map<string, string[]>();
   private catalogs = new Map<string, Promise<Record<string, UiCatalogEntry[]>>>();
 
   constructor(private readonly h: EditorHooks) {}
@@ -51,6 +54,7 @@ export class EditorBackend implements UiBackend {
   async contexts(): Promise<UiContext[]> {
     const list = (await this.h.server.request<ContextListItem[]>("devicetree/getContexts")) ?? [];
     const external = this.h.external();
+    for (const c of list) this.includePaths.set(c.id, (c.settings?.includePaths ?? []).map((p) => resolve(c.settings?.cwd ?? "", p)));
     return list.map((c) => ({
       id: c.id,
       names: c.ctxNames,
@@ -92,7 +96,7 @@ export class EditorBackend implements UiBackend {
     ]);
     if (!nodes) return undefined;
     this.serialized = { id: active.id, nodes };
-    const model = buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+    const model = buildModel(active, nodes, memory, new SourceCache(this.h.docs.read), this.includePaths.get(active.id));
     this.cached = { generation, id: active.id, model };
     log(`model ${active.names[0] ?? active.id}: ${Object.keys(model.nodes).length} nodes in ${Date.now() - t} ms`);
     return model;
@@ -148,10 +152,38 @@ export class EditorBackend implements UiBackend {
     return this.apply(req.overlay, req.nodePath, (node, src) => planAddress(node, req, src));
   }
 
-  private async apply(
+  async movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }> {
+    let conflict: string[] | undefined;
+    const res = await this.applyWith(req.overlay, (nodes, src) => {
+      const plan = planPinMove(this.cached!.model, req);
+      if ("error" in plan) return plan.error;
+      if ("conflict" in plan) {
+        conflict = plan.conflict;
+        return `${req.to} is used by ${plan.conflict.join(", ")}`;
+      }
+      const uri = pathToFileURL(req.overlay).href;
+      const edits = [];
+      for (const c of plan.changes) {
+        const node = nodes[c.node];
+        if (!node) return `node ${c.node} not found`;
+        edits.push(...(planEdit(node, { nodePath: c.node, overlay: req.overlay, property: c.property, value: c.value }, src).changes[uri] ?? []));
+      }
+      return { changes: { [uri]: edits } };
+    });
+    return conflict ? { ...res, conflict } : res;
+  }
+
+  private apply(
     overlay: string,
     nodePath: string,
     plan: (node: any, src: SourceCache) => WorkspaceEdit | string,
+  ): Promise<{ applied: boolean; error?: string }> {
+    return this.applyWith(overlay, (nodes, src) => (nodes[nodePath] ? plan(nodes[nodePath], src) : `node ${nodePath} not found`));
+  }
+
+  private async applyWith(
+    overlay: string,
+    plan: (nodes: Record<string, any>, src: SourceCache) => WorkspaceEdit | string,
   ): Promise<{ applied: boolean; error?: string }> {
     const active = (await this.contexts()).find((c) => c.active);
     // only overlays of the active build that belong to the user may be written
@@ -160,10 +192,9 @@ export class EditorBackend implements UiBackend {
     }
     // plan against the current buffer, never a stale serialization
     if (this.cached?.generation !== this.generation || this.serialized?.id !== active.id) await this.model();
-    const node = this.serialized?.nodes[nodePath];
-    if (!node) return { applied: false, error: `node ${nodePath} not found` };
+    if (!this.serialized || !this.cached) return { applied: false, error: "no devicetree model" };
 
-    const edit = plan(node, new SourceCache(this.h.docs.read));
+    const edit = plan(this.serialized.nodes, new SourceCache(this.h.docs.read));
     if (typeof edit === "string") return { applied: false, error: edit };
     const res = await this.h.zed.request("workspace/applyEdit", { label: "Devicetree visual editor", edit });
     if (!res?.applied) log("applyEdit rejected", res?.failureReason ?? "");

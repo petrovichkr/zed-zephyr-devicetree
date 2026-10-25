@@ -5,10 +5,12 @@
 // Property values are taken verbatim from the source text, so macros stay as
 // written. This module is the contract with the browser app (see UiModel).
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
 import { buildOverview, type UiOverview } from "./overview.js";
+import { buildPinCatalog, pinctrlInclude, type UiPinCatalog } from "./pinfunctions.js";
 import { buildPinMap, type UiPinMap } from "./pins.js";
 
 /** 0-based position, like LSP. `file` is an absolute path. */
@@ -84,6 +86,7 @@ export interface UiModel {
   nodes: Record<string, UiNode>;
   bindings: Record<string, UiBinding>;
   pins: UiPinMap;
+  pinCatalog: UiPinCatalog;
   buses: UiBus[];
   overview: UiOverview;
   memory: UiMemoryRegion[];
@@ -161,11 +164,30 @@ function memoryTree(t: any): UiMemoryRegion {
   };
 }
 
+/** The ESP32 pinctrl header included by the board, resolved against the context's include paths. */
+function esp32Header(nodes: Record<string, UiNode>, src: SourceCache, includePaths: string[]): { file: string; text: string } | undefined {
+  const all = Object.values(nodes);
+  if (!all.some((n) => n.compatible.some((c) => /^espressif,esp32.*gpio/.test(c)))) return undefined;
+  // files that define pinctrl states first, then everything else
+  const pinctrl = all.filter((n) => n.path.startsWith("/pin-controller") || n.compatible.some((c) => c.endsWith("-pinctrl")));
+  const files = [...new Set([...pinctrl, ...all].flatMap((n) => n.definitions.map((d) => d.file)))];
+  for (const f of files) {
+    const name = pinctrlInclude(src.lines(f));
+    if (!name) continue;
+    for (const dir of includePaths) {
+      const file = join(dir, name);
+      if (existsSync(file)) return { file, text: src.lines(file).join("\n") };
+    }
+  }
+  return undefined;
+}
+
 export function buildModel(
   context: UiContext,
   serialized: Record<string, any>,
   memory: { trees?: Record<string, any> } | undefined,
   src = new SourceCache(),
+  includePaths: string[] = [],
 ): UiModel {
   const nodes: Record<string, UiNode> = {};
   const bindings: Record<string, UiBinding> = {};
@@ -224,6 +246,7 @@ export function buildModel(
     nodes,
     bindings,
     pins,
+    pinCatalog: buildPinCatalog(nodes, esp32Header(nodes, src, includePaths)),
     buses,
     overview: buildOverview(nodes, bindings, pins, buses),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),

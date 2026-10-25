@@ -151,6 +151,17 @@ if (process.env.UI_CHECK) {
   const overlay = model.context.overlays.at(-1);
   const res = await (await api("/api/edit", { nodePath, overlay, property, value })).json();
   console.log("ui edit:", JSON.stringify(res), JSON.stringify(edits));
+  // stage 7: pin catalog and moving a pinctrl function to a free pin
+  const cat = model.pinCatalog;
+  console.log(`ui pin catalog: ${cat.vendor}, ${cat.ports.length} ports, ${Object.keys(cat.functions).length} functions${cat.source ? ` from ${cat.source.split("/").pop()}` : ""}`);
+  const used = new Set(model.pins.usages.map((u) => u.pin));
+  const mv = model.pins.usages.find((u) => !u.disabled && u.function !== "GPIO" && (u.cell || u.ref) && (cat.functions[u.function] ?? []).some((p) => !used.has(p)));
+  if (mv) {
+    const to = cat.functions[mv.function].find((p) => !used.has(p));
+    edits.length = 0;
+    const res = await (await api("/api/move-pin", { owner: mv.owner, function: mv.function, from: mv.pin, to, overlay })).json();
+    console.log(`ui move-pin ${mv.function} ${mv.pin} -> ${to}:`, JSON.stringify(res), JSON.stringify(edits));
+  }
   // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
   const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
   console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);

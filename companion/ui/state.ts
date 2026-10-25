@@ -52,6 +52,10 @@ export const state = {
   pinFocus: "",
   pinScroll: false,
   unknownOpen: false,
+  /** Pins tab: logical grid of ports or the usage table. */
+  pinView: "grid" as "grid" | "table",
+  /** Filter of the function list in the pin panel. */
+  fnFilter: "",
   /** Buses tab: also list disabled buses that have no devices. */
   busShowAll: false,
   /** Overview tab: also draw disabled peripherals. */
