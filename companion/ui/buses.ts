@@ -57,14 +57,19 @@ const CTRL_W = 190;
 const TRUNK = 220;
 const DEV_X = 370;
 const DEV_W = 300;
+/** Free space above the first and below the last element. */
+const PAD = 12;
 
 function diagram(m: UiModel, bus: UiBus): SVGSVGElement {
   const rows = Math.max(1, bus.devices.length);
-  const height = rows * ROW + 8;
   const ctrl = m.nodes[bus.path];
   const ctrlH = Math.max(BOX + 22, rows * ROW - 10);
+  // the controller box may be taller than the device rows; both are centred between the paddings
+  const inner = Math.max(rows * ROW, ctrlH);
+  const height = inner + 2 * PAD;
   const ctrlY = (height - ctrlH) / 2;
-  const mid = (i: number) => 4 + i * ROW + ROW / 2;
+  const firstRow = PAD + (inner - rows * ROW) / 2;
+  const mid = (i: number) => firstRow + i * ROW + ROW / 2;
   const sel = (p: string) => (state.selected === p ? " selected" : "");
 
   const svg = s("svg", { class: "bus-svg", width: DEV_X + DEV_W + 8, height, viewBox: `0 0 ${DEV_X + DEV_W + 8} ${height}`, role: "img", "aria-label": `${bus.type} bus ${ctrl?.name ?? bus.path}` });
@@ -96,8 +101,8 @@ function diagram(m: UiModel, bus: UiBus): SVGSVGElement {
     svg.append(
       s("line", { class: `wire${off ? " off" : ""}${d.link !== "child" ? " ref" : ""}${sev ? ` ${sev}` : ""}`, x1: TRUNK, y1: y, x2: DEV_X, y2: y }),
       s("circle", { class: `joint${off ? " off" : ""}`, cx: TRUNK, cy: y, r: 3 }),
-      s("text", { x: TRUNK + 12, y: y - 6, class: `edge${sev ? ` ${sev}` : ""}` }, clip(top, 22)),
-      s("text", { x: TRUNK + 12, y: y + 14, class: "edge sub" }, clip(bottom, 24)),
+      ...(top ? [s("text", { x: TRUNK + 12, y: y - 6, class: `edge${sev ? ` ${sev}` : ""}` }, clip(top, 22))] : []),
+      ...(bottom ? [s("text", { x: TRUNK + 12, y: y + 14, class: "edge sub" }, clip(bottom, 24))] : []),
       s(
         "g",
         { class: `dev${off ? " off" : ""}${sev ? ` ${sev}` : ""}${sel(d.path)}`, onclick: () => select(d.path) },
