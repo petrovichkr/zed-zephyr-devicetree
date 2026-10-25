@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Compile every languages/devicetree/*.scm query against the grammar and run it
+"""Compile every zed/languages/devicetree/*.scm query against the grammar and run it
 over the given .dts/.overlay files, printing capture counts.
 
 Requires: pip install tree-sitter <path to tree-sitter-devicetree checkout>
@@ -12,7 +12,7 @@ from pathlib import Path
 import tree_sitter_devicetree
 from tree_sitter import Language, Parser, Query, QueryCursor
 
-QUERIES = Path(__file__).resolve().parent.parent / "languages" / "devicetree"
+QUERIES = Path(__file__).resolve().parent.parent / "zed" / "languages" / "devicetree"
 
 
 def main() -> int:

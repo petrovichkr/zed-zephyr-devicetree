@@ -1,7 +1,7 @@
 # Rust / Zed extension build output
-/target/
+/zed/target/
 *.wasm
-/grammars/
+/zed/grammars/
 
 # Editors / OS
 .DS_Store
@@ -13,5 +13,5 @@
 .claude/settings.local.json
 
 # Companion: dependencies are local; dist/companion.cjs IS committed because
-# src/lib.rs embeds it with include_str! when Zed builds the extension.
+# zed/src/lib.rs embeds it with include_str! when Zed builds the extension.
 /companion/node_modules/

@@ -21,7 +21,7 @@ Status: MVP and Zephyr bindings support (stages 0–3 of [docs/SPEC.md](docs/SPE
 ## Install (development)
 
 1. `rustup target add wasm32-wasip2`
-2. In Zed run `zed: install dev extension` and pick this directory.
+2. In Zed run `zed: install dev extension` and pick the `zed/` directory of this repository.
 3. Uninstall other devicetree extensions. They claim the same file suffixes.
 
 ## Settings
@@ -53,7 +53,10 @@ documented in the [dts-lsp README](https://github.com/kylebonnici/dts-lsp#settin
 
 ## Development
 
-- `cargo build --target wasm32-wasip2` / `cargo test` / `cargo clippy --target wasm32-wasip2`
+Layout: `companion/` is the editor-neutral LSP proxy and visual editor (`companion/dist/companion.cjs`,
+committed), `zed/` is the Zed extension that embeds it.
+
+- In `zed/`: `cargo build --target wasm32-wasip2` / `cargo test` / `cargo clippy --target wasm32-wasip2`
 - `scripts/check_queries.py <files…>` compiles the `.scm` queries and runs them on sample files
   (needs `pip install tree-sitter <tree-sitter-devicetree checkout>`).
 - `scripts/smoke_lsp.mjs <server.js> <workspace> <file>` exercises the language server headlessly.
