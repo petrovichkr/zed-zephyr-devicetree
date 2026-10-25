@@ -143,7 +143,7 @@ describe("WCH CH32 clock tree", () => {
 
   it("computes SYSCLK from the PLL multiplier and checks the CPU frequency", () => {
     const c = tree("<18>", "<DT_FREQ_M(144)>");
-    expect([c.family, c.part, hz(c, "pll"), hz(c, "sysclk"), c.declaredNode, c.issues]).toEqual(["wch", "wch,ch32v203", 144 * MHZ, 144 * MHZ, "/cpus/cpu@0", []]);
+    expect([c.family, c.part, hz(c, "pll"), hz(c, "sysclk"), c.declaredNode, c.issues]).toEqual(["wch", "wch,ch32v203c8t6", 144 * MHZ, 144 * MHZ, "/cpus/cpu@0", []]);
     const parent = (id: string) => c.edges.find((e) => e.to === id)?.from;
     expect([parent("/soc/uart@40004800"), parent("/soc/gpio@40010800")]).toEqual(["apb1", "apb2"]);
   });
