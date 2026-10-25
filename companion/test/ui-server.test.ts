@@ -27,6 +27,15 @@ describe("UiServer", () => {
       edits.push(req);
       return { applied: true };
     },
+    catalog: async (bus) => (bus === "i2c" ? [{ compatible: "st,lis2dh12", file: "/b.yaml", required: [] }] : []),
+    addNode: async (req) => {
+      edits.push(req);
+      return { applied: true };
+    },
+    setAddress: async (req) => {
+      edits.push(req);
+      return { applied: true };
+    },
   };
   const server = new UiServer(backend);
   let base: URL;
@@ -80,5 +89,19 @@ describe("UiServer", () => {
     const ok = await call("/api/edit", { token: token(), method: "POST", body, type: "application/json" });
     expect(JSON.parse(ok.body)).toEqual({ applied: true });
     expect(edits).toEqual([{ nodePath: "/a", overlay: "/o.overlay", property: "status", value: '"okay"' }]);
+  });
+
+  it("serves the device catalog and node additions", async () => {
+    const cat = await call("/api/catalog?bus=i2c", { token: token() });
+    expect(JSON.parse(cat.body).map((e: { compatible: string }) => e.compatible)).toEqual(["st,lis2dh12"]);
+    edits.length = 0;
+    const body = JSON.stringify({ parentPath: "/soc/i2c@1", overlay: "/o.overlay", name: "accel@19", props: [{ name: "reg", value: "<0x19>" }, { name: "x", value: true }] });
+    expect(JSON.parse((await call("/api/add-node", { token: token(), method: "POST", body, type: "application/json" })).body)).toEqual({ applied: true });
+    const addr = JSON.stringify({ nodePath: "/soc/i2c@1/accel@19", overlay: "/o.overlay", reg: "<0x18>", unit: "18" });
+    await call("/api/address", { token: token(), method: "POST", body: addr, type: "application/json" });
+    expect(edits).toEqual([
+      { parentPath: "/soc/i2c@1", overlay: "/o.overlay", name: "accel@19", props: [{ name: "reg", value: "<0x19>" }, { name: "x", value: true }] },
+      { nodePath: "/soc/i2c@1/accel@19", overlay: "/o.overlay", reg: "<0x18>", unit: "18" },
+    ]);
   });
 });

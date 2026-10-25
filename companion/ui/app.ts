@@ -4,6 +4,7 @@
 // self-contained page by the companion; talks to it via /api (see api.ts).
 
 import * as api from "./api.js";
+import { renderBuses } from "./buses.js";
 import { renderDetails } from "./details.js";
 import { h, patch } from "./dom.js";
 import { tail } from "./format.js";
@@ -92,9 +93,15 @@ function tabs(): HTMLElement {
     "nav",
     { class: "tabs", role: "tablist" },
     tab("tree", "Tree"),
+    tab("buses", `Buses${busErrors(state.model)}`),
     tab("memory", `Memory${state.model ? ` (${state.model.memory.length})` : ""}`),
     tab("pins", `Pins${state.model?.pins.conflicts.length ? ` (${state.model.pins.conflicts.length} conflict${state.model.pins.conflicts.length === 1 ? "" : "s"})` : ""}`),
   );
+}
+
+function busErrors(m: typeof state.model): string {
+  const n = m?.buses.reduce((acc, b) => acc + b.issues.filter((i) => i.severity === "error").length, 0) ?? 0;
+  return n ? ` (${n} error${n === 1 ? "" : "s"})` : "";
 }
 
 function message(): HTMLElement | null {
@@ -113,6 +120,7 @@ function body(): HTMLElement {
   if (!state.loaded) return h("main", { class: "center muted" }, "Loading…");
   if (!m) return h("main", { class: "center muted" }, "Waiting for devicetree context… Open a .dts or .overlay file in Zed.");
   if (state.tab === "memory") return h("main", { class: "single" }, renderMemory(m));
+  if (state.tab === "buses") return h("main", { class: "split buses-split" }, renderBuses(m), renderDetails(m));
   if (state.tab === "pins") return h("main", { class: "single" }, renderPins(m));
   return h("main", { class: "split" }, renderTree(m), renderDetails(m));
 }

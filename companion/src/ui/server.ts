@@ -9,7 +9,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 // The page is a single self-contained file built by scripts/build-ui.mjs.
 import html from "../../dist/ui.html";
-import type { EditRequest } from "./edits.js";
+import type { UiCatalogEntry } from "./catalog.js";
+import type { AddressRequest, ChildRequest, EditRequest } from "./edits.js";
 import type { Loc, UiContext, UiModel } from "./model.js";
 
 export interface UiBackend {
@@ -18,6 +19,9 @@ export interface UiBackend {
   setActive(id: string): Promise<void>;
   open(loc: Loc): Promise<void>;
   edit(req: EditRequest): Promise<{ applied: boolean; error?: string }>;
+  catalog(bus: string): Promise<UiCatalogEntry[]>;
+  addNode(req: ChildRequest): Promise<{ applied: boolean; error?: string }>;
+  setAddress(req: AddressRequest): Promise<{ applied: boolean; error?: string }>;
 }
 
 const MAX_BODY = 1 << 20;
@@ -98,6 +102,27 @@ export class UiServer {
           res,
           200,
           await this.backend.edit({ nodePath: String(b.nodePath), overlay: String(b.overlay), property: String(b.property), value }),
+        );
+      }
+      case "GET /api/catalog":
+        return send(res, 200, await this.backend.catalog(url.searchParams.get("bus") ?? ""));
+      case "POST /api/add-node": {
+        const b = await body(req);
+        const props = Array.isArray(b.props)
+          ? b.props.map((p: any) => ({ name: String(p?.name), value: p?.value === true ? (true as const) : String(p?.value) }))
+          : [];
+        return send(
+          res,
+          200,
+          await this.backend.addNode({ parentPath: String(b.parentPath), overlay: String(b.overlay), name: String(b.name), props }),
+        );
+      }
+      case "POST /api/address": {
+        const b = await body(req);
+        return send(
+          res,
+          200,
+          await this.backend.setAddress({ nodePath: String(b.nodePath), overlay: String(b.overlay), reg: String(b.reg), unit: String(b.unit) }),
         );
       }
       default:

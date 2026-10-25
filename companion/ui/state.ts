@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import type { UiCatalogEntry } from "../src/ui/catalog.js";
 import type { UiContext, UiModel } from "../src/ui/model.js";
 import * as api from "./api.js";
 
-export type Tab = "tree" | "memory" | "pins";
+export type Tab = "tree" | "buses" | "memory" | "pins";
 
 export const CUSTOM = "\u0000custom";
 
@@ -16,6 +17,16 @@ export interface AddDraft {
 }
 
 export const emptyAdd = (): AddDraft => ({ name: "", custom: "", text: "", checked: true });
+
+/** "Add device" form of one bus in the Buses tab. */
+export interface DeviceDraft {
+  bus: string;
+  query: string;
+  entry: UiCatalogEntry | null;
+  name: string;
+  address: string;
+  values: Record<string, string>;
+}
 
 export const state = {
   loaded: false,
@@ -41,6 +52,13 @@ export const state = {
   pinFocus: "",
   pinScroll: false,
   unknownOpen: false,
+  /** Buses tab: also list disabled buses that have no devices. */
+  busShowAll: false,
+  device: null as DeviceDraft | null,
+  /** Device bindings by bus type; "loading" while dts-lsp builds them. */
+  catalogs: new Map<string, UiCatalogEntry[] | "loading">(),
+  /** Address being edited in the node's Bus section. */
+  address: null as { path: string; text: string } | null,
 };
 
 let renderer = (): void => {};
@@ -69,6 +87,10 @@ function setModel(m: UiModel | null): void {
     selectPath(m.nodes[p] ? p : m.root);
   }
   const overlays = m.context.overlays;
+  if (state.overlayContext !== m.context.id) {
+    state.catalogs.clear();
+    state.device = null;
+  }
   if (state.overlayContext !== m.context.id || !overlays.includes(state.overlay)) {
     state.overlay = overlays[overlays.length - 1] ?? "";
     state.overlayContext = m.context.id;
@@ -111,6 +133,7 @@ function selectPath(path: string): void {
   if (path !== state.selected) {
     state.editing = null;
     state.add = emptyAdd();
+    state.address = null;
     state.openOverrides.clear();
   }
   state.selected = path;
@@ -145,16 +168,25 @@ export async function openLoc(loc: { file: string; line: number; character: numb
 }
 
 export async function applyEdit(nodePath: string, property: string, value: string | true | null): Promise<boolean> {
+  return applyChange(
+    () => api.edit({ nodePath, overlay: state.overlay, property, value }),
+    value === null ? `Removed ${property}` : `Wrote ${property}`,
+    `Edit of ${property}`,
+  );
+}
+
+/** Runs one overlay change: busy flag, result message, refetch. */
+export async function applyChange(run: () => Promise<{ applied: boolean; error?: string }>, done: string, what: string): Promise<boolean> {
   if (!canEdit()) return false;
   state.busy = true;
   rerender();
   try {
-    const res = await api.edit({ nodePath, overlay: state.overlay, property, value });
+    const res = await run();
     if (!res.applied) {
-      notify("error", `Edit of ${property} not applied${res.error ? `: ${res.error}` : ""}`);
+      notify("error", `${what} not applied${res.error ? `: ${res.error}` : ""}`);
       return false;
     }
-    notify("info", value === null ? `Removed ${property}` : `Wrote ${property}`);
+    notify("info", done);
     return true;
   } catch (e) {
     notify("error", errorText(e));
@@ -164,4 +196,20 @@ export async function applyEdit(nodePath: string, property: string, value: strin
     rerender();
     void refresh();
   }
+}
+
+/** Device bindings for a bus type, fetched once (the first fetch takes seconds). */
+export function catalog(bus: string): UiCatalogEntry[] | "loading" {
+  const have = state.catalogs.get(bus);
+  if (have) return have;
+  state.catalogs.set(bus, "loading");
+  api
+    .getCatalog(bus)
+    .then((list) => state.catalogs.set(bus, list))
+    .catch((e) => {
+      state.catalogs.delete(bus);
+      notify("error", errorText(e));
+    })
+    .finally(rerender);
+  return "loading";
 }

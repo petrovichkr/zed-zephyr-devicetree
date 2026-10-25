@@ -3,6 +3,7 @@
 import type { Loc, UiBinding, UiBindingProp, UiModel, UiNode, UiProp } from "../src/ui/model.js";
 import { h } from "./dom.js";
 import { basename, cells, enumValue, locText, locTitle, quote } from "./format.js";
+import { busSection } from "./buses.js";
 import { usageText } from "./pins.js";
 import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, showPin, state } from "./state.js";
 
@@ -356,6 +357,7 @@ export function renderDetails(m: UiModel): HTMLElement {
           ]
         : null,
     ),
+    busSection(m, node),
     pinSection(m, node),
     node.definitions.length ? section(`Definitions (${node.definitions.length})`, h("ul", { class: "defs" }, node.definitions.map((l) => h("li", null, locLink(l, l.file + `:${l.line + 1}`))))) : null,
     section(

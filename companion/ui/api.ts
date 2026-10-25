@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { EditRequest } from "../src/ui/edits.js";
+import type { UiCatalogEntry } from "../src/ui/catalog.js";
+import type { AddressRequest, ChildRequest, EditRequest } from "../src/ui/edits.js";
 import type { Loc, UiContext, UiModel } from "../src/ui/model.js";
 
 export const token = new URLSearchParams(location.search).get("t") ?? "";
@@ -31,6 +32,15 @@ export const open = async (loc: Loc): Promise<void> =>
 export async function edit(req: EditRequest): Promise<{ applied: boolean; error?: string }> {
   return (await request("POST", "/api/edit", req)).json();
 }
+
+type Result = { applied: boolean; error?: string };
+
+export const getCatalog = async (bus: string): Promise<UiCatalogEntry[]> =>
+  (await request("GET", `/api/catalog?bus=${encodeURIComponent(bus)}`)).json();
+
+export const addNode = async (req: ChildRequest): Promise<Result> => (await request("POST", "/api/add-node", req)).json();
+
+export const setAddress = async (req: AddressRequest): Promise<Result> => (await request("POST", "/api/address", req)).json();
 
 export function events(onChanged: (reason: string) => void, onConnection: (up: boolean) => void): EventSource {
   const es = new EventSource(`/api/events?t=${encodeURIComponent(token)}`);

@@ -3,7 +3,8 @@
 // Manual check of dist/ui.html: `node scripts/dev-ui.mjs <model.json> [port]`.
 // Serves the page and the model with no-op /api endpoints; edits are logged
 // and followed by a `changed` event. Token is `dev`. DEV_UI_INJECT=1 adds a
-// fake pin conflict and an undecoded pinctrl entry.
+// fake pin conflict and an undecoded pinctrl entry. DEV_UI_CATALOG=<json> serves
+// /api/catalog from a dump of the catalog ({ bus: entries[] }).
 
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -24,6 +25,7 @@ if (process.env.DEV_UI_INJECT && model.pins?.usages.length) {
   model.pins.conflicts.push(u.pin);
   model.pins.unknown.push({ owner: other, property: "pinctrl-0", value: "<VENDOR_PIN(3, 7)>" });
 }
+const catalog = process.env.DEV_UI_CATALOG ? JSON.parse(readFileSync(process.env.DEV_UI_CATALOG, "utf8")) : {};
 const contexts = [model.context, { id: "other", names: ["other/app"], active: false, overlays: [] }];
 const clients = new Set();
 
@@ -69,6 +71,10 @@ createServer(async (req, res) => {
       return json(res, {});
     case "/api/open":
       return json(res, {});
+    case "/api/catalog":
+      return setTimeout(() => json(res, catalog[url.searchParams.get("bus")] ?? []), 500);
+    case "/api/add-node":
+    case "/api/address":
     case "/api/edit":
       setTimeout(() => changed("edit"), 200);
       return json(res, body.property === "fail" ? { applied: false, error: "dev stub: refused" } : { applied: true });

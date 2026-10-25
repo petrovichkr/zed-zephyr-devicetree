@@ -70,7 +70,7 @@ function pinFromLabel(label: string): string | undefined {
 }
 
 /** Pin name for `<&ctrl N ...>` from the GPIO controller's label and compatible. */
-function gpioPin(ctrl: UiNode | undefined, label: string, arg: string): string {
+export function gpioPin(ctrl: UiNode | undefined, label: string, arg: string): string {
   const n = /^\d+$/.test(arg) ? Number(arg) : undefined;
   if (n === undefined) return `${label}.${arg}`;
   if (ctrl?.compatible.some((c) => /stm32.*gpio/.test(c))) {

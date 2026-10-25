@@ -9,7 +9,8 @@ import { pathToFileURL } from "node:url";
 import type { DocumentStore } from "../documents.js";
 import type { Peer } from "../jsonrpc.js";
 import { isUnder } from "../zephyr.js";
-import { planEdit, type EditRequest } from "./edits.js";
+import { buildCatalog, type UiCatalogEntry } from "./catalog.js";
+import { planAddress, planChild, planEdit, type AddressRequest, type ChildRequest, type EditRequest, type WorkspaceEdit } from "./edits.js";
 import { buildModel, SourceCache, type Loc, type UiContext, type UiModel } from "./model.js";
 import type { UiBackend } from "./server.js";
 
@@ -42,6 +43,8 @@ export class EditorBackend implements UiBackend {
   private generation = 0;
   private cached?: { generation: number; id: string; model: UiModel };
   private inflight?: { generation: number; promise: Promise<UiModel | undefined> };
+  /** zephyrTypeBindings takes ~15 s and tens of MB on a full Zephyr tree: once per context. */
+  private catalogs = new Map<string, Promise<Record<string, UiCatalogEntry[]>>>();
 
   constructor(private readonly h: EditorHooks) {}
 
@@ -112,18 +115,56 @@ export class EditorBackend implements UiBackend {
     spawn(cli, [`${loc.file}:${loc.line + 1}:${loc.character + 1}`], { detached: true, stdio: "ignore" }).unref();
   }
 
-  async edit(req: EditRequest): Promise<{ applied: boolean; error?: string }> {
+  async catalog(bus: string): Promise<UiCatalogEntry[]> {
+    const active = (await this.contexts()).find((c) => c.active);
+    if (!active) return [];
+    let all = this.catalogs.get(active.id);
+    if (!all) {
+      const t = Date.now();
+      all = this.h.server.request<any[]>("devicetree/zephyrTypeBindings", active.id).then((raw) => {
+        const catalog = buildCatalog(raw ?? []);
+        log(`bindings catalog ${active.names[0] ?? active.id}: ${raw?.length ?? 0} bindings in ${Date.now() - t} ms`);
+        return catalog;
+      });
+      all.catch(() => this.catalogs.delete(active.id));
+      this.catalogs.set(active.id, all);
+    }
+    return (await all)[bus] ?? [];
+  }
+
+  edit(req: EditRequest): Promise<{ applied: boolean; error?: string }> {
+    return this.apply(req.overlay, req.nodePath, (node, src) => planEdit(node, req, src));
+  }
+
+  addNode(req: ChildRequest): Promise<{ applied: boolean; error?: string }> {
+    if (!/^[A-Za-z0-9,._+-]+(@[0-9A-Za-z,._+-]+)?$/.test(req.name)) return Promise.resolve({ applied: false, error: `invalid node name "${req.name}"` });
+    return this.apply(req.overlay, req.parentPath, (node, src) => {
+      const path = `${req.parentPath === "/" ? "" : req.parentPath}/${req.name}`;
+      return this.serialized?.nodes[path] ? `node ${path} already exists` : planChild(node, req, src);
+    });
+  }
+
+  setAddress(req: AddressRequest): Promise<{ applied: boolean; error?: string }> {
+    return this.apply(req.overlay, req.nodePath, (node, src) => planAddress(node, req, src));
+  }
+
+  private async apply(
+    overlay: string,
+    nodePath: string,
+    plan: (node: any, src: SourceCache) => WorkspaceEdit | string,
+  ): Promise<{ applied: boolean; error?: string }> {
     const active = (await this.contexts()).find((c) => c.active);
     // only overlays of the active build that belong to the user may be written
-    if (!active || !active.overlays.includes(resolve(req.overlay))) {
+    if (!active || !active.overlays.includes(resolve(overlay))) {
       return { applied: false, error: "target is not a user overlay of the active context" };
     }
     // plan against the current buffer, never a stale serialization
     if (this.cached?.generation !== this.generation || this.serialized?.id !== active.id) await this.model();
-    const node = this.serialized?.nodes[req.nodePath];
-    if (!node) return { applied: false, error: `node ${req.nodePath} not found` };
+    const node = this.serialized?.nodes[nodePath];
+    if (!node) return { applied: false, error: `node ${nodePath} not found` };
 
-    const edit = planEdit(node, req, new SourceCache(this.h.docs.read));
+    const edit = plan(node, new SourceCache(this.h.docs.read));
+    if (typeof edit === "string") return { applied: false, error: edit };
     const res = await this.h.zed.request("workspace/applyEdit", { label: "Devicetree visual editor", edit });
     if (!res?.applied) log("applyEdit rejected", res?.failureReason ?? "");
     return { applied: !!res?.applied, error: res?.applied ? undefined : (res?.failureReason ?? "Zed rejected the edit") };

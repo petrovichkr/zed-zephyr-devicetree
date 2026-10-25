@@ -122,6 +122,7 @@ if (process.env.PROBE_OUT) {
   for (const [name, method, params] of [
     ["serialized", "devicetree/serializedContext", active.id],
     ["memory", "devicetree/memoryViews", { ctxId: active.id }],
+    ["bindings", "devicetree/zephyrTypeBindings", active.id],
   ]) {
     const t = Date.now();
     const res = await request(method, params);
@@ -150,6 +151,17 @@ if (process.env.UI_CHECK) {
   const overlay = model.context.overlays.at(-1);
   const res = await (await api("/api/edit", { nodePath, overlay, property, value })).json();
   console.log("ui edit:", JSON.stringify(res), JSON.stringify(edits));
+  // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
+  const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
+  console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);
+  if (i2c) {
+    const tc = Date.now();
+    const catalog = await (await api("/api/catalog?bus=i2c")).json();
+    console.log(`ui catalog i2c: ${catalog.length} bindings in ${Date.now() - tc} ms`);
+    edits.length = 0;
+    const add = await (await api("/api/add-node", { parentPath: i2c.path, overlay, name: "smoke@7f", props: [{ name: "compatible", value: '"st,lis2dh12"' }, { name: "reg", value: "<0x7f>" }] })).json();
+    console.log("ui add-node:", JSON.stringify(add), JSON.stringify(edits));
+  }
 }
 const symbols = await request("textDocument/documentSymbol", { textDocument: { uri } });
 console.log(`documentSymbol: ${Array.isArray(symbols) ? symbols.length : JSON.stringify(symbols)}`);

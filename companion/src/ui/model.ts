@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { buildBuses, type UiBus } from "./buses.js";
 import { buildPinMap, type UiPinMap } from "./pins.js";
 
 /** 0-based position, like LSP. `file` is an absolute path. */
@@ -37,6 +38,8 @@ export interface UiProp {
 export interface UiBinding {
   file?: string;
   description?: string;
+  /** Bus types this node provides to its children (`bus:` in the binding). */
+  bus?: string[];
   props: UiBindingProp[];
 }
 
@@ -80,6 +83,7 @@ export interface UiModel {
   nodes: Record<string, UiNode>;
   bindings: Record<string, UiBinding>;
   pins: UiPinMap;
+  buses: UiBus[];
   memory: UiMemoryRegion[];
 }
 
@@ -170,6 +174,7 @@ export function buildModel(
       bindings[key] = {
         file: t.bindingsPath,
         description: t.description,
+        bus: t.bus?.length ? t.bus : undefined,
         props: (t.properties ?? []).filter((p: any) => !p.nameIsRegex).map(bindingProp),
       };
     }
@@ -209,12 +214,14 @@ export function buildModel(
       .map((c) => (c.startsWith("/") ? c : `${node.path === "/" ? "" : node.path}/${c}`))
       .filter((c) => nodes[c]);
   }
+  const pins = buildPinMap(nodes);
   return {
     context,
     root: "/",
     nodes,
     bindings,
-    pins: buildPinMap(nodes),
+    pins,
+    buses: buildBuses(nodes, bindings, pins),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };
 }

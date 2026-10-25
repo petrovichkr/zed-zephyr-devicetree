@@ -190,3 +190,49 @@ option.required { font-weight: 600; }
 .unknown code { white-space: pre-wrap; word-break: break-word; }
 .node-pins { margin: 0; padding-left: 18px; }
 .node-pins li.nondefault { opacity: 0.7; }
+
+/* Buses tab */
+main.buses-split { grid-template-columns: minmax(420px, 58%) 1fr; }
+.buses { overflow: auto; border-right: 1px solid var(--border); }
+.bus-card { margin: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); }
+.bus-card.off { opacity: 0.75; }
+.bus-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.bus-title { font-weight: 600; }
+.pins-inline { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.chip { font-size: 11px; padding: 0 5px; border-radius: 8px; background: var(--code); }
+.bus-diagram { overflow-x: auto; padding: 4px; }
+.bus-svg { display: block; font: 12px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
+.bus-svg rect { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
+.bus-svg g { cursor: pointer; }
+.bus-svg g:hover rect { fill: var(--hover); }
+.bus-svg g.selected rect { fill: var(--sel); stroke: var(--accent); }
+.bus-svg .ctrl rect { stroke: var(--accent); }
+.bus-svg .off rect { stroke-dasharray: 4 3; }
+.bus-svg .off text { fill: var(--muted); }
+.bus-svg .warning rect { stroke: var(--warn); }
+.bus-svg .error rect { stroke: var(--danger); stroke-width: 2; }
+.bus-svg .t1 { fill: var(--fg); font-weight: 600; }
+.bus-svg .t2 { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+.bus-svg .wire { stroke: var(--accent); stroke-width: 2; }
+.bus-svg .wire.off { stroke: var(--muted); stroke-dasharray: 4 3; }
+.bus-svg .wire.ref { stroke-dasharray: 2 3; }
+.bus-svg .wire.warning { stroke: var(--warn); }
+.bus-svg .wire.error { stroke: var(--danger); }
+.bus-svg .joint { fill: var(--accent); }
+.bus-svg .joint.off { fill: var(--muted); }
+.bus-svg .edge { fill: var(--fg); font-family: var(--mono); font-size: 11px; }
+.bus-svg .edge.sub { fill: var(--muted); }
+.bus-svg .edge.warning { fill: var(--warn); }
+.bus-svg .edge.error { fill: var(--danger); }
+.bus-issues { margin: 0; padding: 4px 8px 8px 24px; }
+.bus-issues .link { color: inherit; text-align: left; }
+.add-device { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.add-device .row { display: flex; align-items: center; gap: 8px; }
+.add-device input[type="search"] { width: 300px; }
+.add-device .catalog { width: 100%; }
+.dev-fields { display: flex; flex-direction: column; gap: 4px; }
+.dev-fields .desc { margin-bottom: 2px; }
+.field { display: grid; grid-template-columns: 220px 1fr; align-items: center; gap: 8px; }
+.field .type { margin-left: 6px; }
+.editor.inline { display: inline-flex; align-items: center; }
+.editor.inline input { width: 90px; flex: none; }
