@@ -10,6 +10,7 @@ import type { UiCatalogEntry, UiCatalogProp } from "../src/ui/catalog.js";
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { exportButton } from "./export.js";
 import { classGlyph, nodeClass } from "./icons.js";
 import { basename, cells, quote } from "./format.js";
 import { applyChange, applyEdit, canEdit, catalog, rerender, select, showPin, state } from "./state.js";
@@ -364,6 +365,7 @@ function busCard(m: UiModel, bus: UiBus): HTMLElement {
       errors ? h("span", { class: "badge error" }, `${errors} error${errors === 1 ? "" : "s"}`) : null,
       h("span", { class: "pins-inline" }, bus.pins.map((p) => h("button", { class: "chip mono", title: `${p.function ?? ""} — show in Pins tab`, onclick: () => showPin(p.pin) }, p.pin))),
       h("span", { class: "spacer" }),
+      exportButton(`[data-bus="${CSS.escape(bus.path)}"] .bus-svg`, () => `bus-${ctrl?.labels[0] ?? bus.path}`),
       h(
         "button",
         {

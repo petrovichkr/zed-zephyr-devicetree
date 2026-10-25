@@ -7,6 +7,7 @@
 import type { UiModel } from "../src/ui/model.js";
 import type { UiIndicator, UiOverviewGroup, UiPeripheral } from "../src/ui/overview.js";
 import { h } from "./dom.js";
+import { exportButton } from "./export.js";
 import { classGlyph } from "./icons.js";
 import { flagsText, flagTags, keyGlyph, ledGlyph } from "./glyphs.js";
 import { basename, humanSize } from "./format.js";
@@ -273,6 +274,8 @@ export function renderOverview(m: UiModel): HTMLElement {
         conflicts ? `, ${conflicts} pin conflict${conflicts === 1 ? "" : "s"}` : "",
       ),
       h("span", { class: "muted" }, "click: select · double click: open in Tree · ● enable/disable"),
+      h("span", { class: "spacer" }),
+      exportButton(".ov-svg", () => `overview-${m.context.names[0] ?? "context"}`),
     ),
     h("div", { class: "overview-diagram" }, s("svg", { class: "ov-svg", width: WIDTH, height, viewBox: `0 0 ${WIDTH} ${height}`, role: "img", "aria-label": "SoC overview" }, ...out)),
   );

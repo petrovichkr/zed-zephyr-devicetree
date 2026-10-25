@@ -10,6 +10,7 @@ import { buildClocks, mhz, type UiClockNode, type UiClockParam, type UiClocks } 
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { exportButton } from "./export.js";
 import { basename } from "./format.js";
 import { applyChange, canEdit, rerender, select, state } from "./state.js";
 import { clip, s } from "./svg.js";
@@ -204,5 +205,10 @@ function panel(m: UiModel, live: UiClocks): HTMLElement {
 export function renderClocks(m: UiModel): HTMLElement {
   const live = (state.clockDraft.size ? buildClocks(drafted(m)) : m.clocks) ?? m.clocks;
   if (!live) return h("div", { class: "empty" }, "No clock tree for this SoC");
-  return h("div", { class: "clk-wrap" }, h("div", { class: "clk-graph", "data-scroll": "clk-graph" }, graph(live)), panel(m, live));
+  return h(
+    "div",
+    { class: "clk-wrap" },
+    h("div", { class: "clk-graph", "data-scroll": "clk-graph" }, h("div", { class: "clk-export" }, exportButton(".clk-svg", () => "clock-tree")), graph(live)),
+    panel(m, live),
+  );
 }

@@ -4,6 +4,7 @@ import type { UiMemory } from "../src/ui/memmap.js";
 import type { UiModel, UiMemoryRegion } from "../src/ui/model.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { downloadSvg } from "./export.js";
 import { basename, hex, humanSize } from "./format.js";
 import { applyChange, canEdit, rerender, select, state } from "./state.js";
 import { clip, s } from "./svg.js";
@@ -193,6 +194,7 @@ function column(m: UiMemory): HTMLElement {
       h("span", { class: "badge" }, m.kind),
       h("span", { class: "mono muted" }, humanSize(m.size)),
       m.chosen.map((c) => h("span", { class: "badge ok" }, c)),
+      h("button", { class: "small", title: "Save this diagram as an SVG file", onclick: () => downloadSvg(svg, `memory-${m.name}`) }, "SVG"),
     ),
     m.base !== undefined ? h("div", { class: "mono muted" }, `${hex(m.base)} – ${hex(m.base + m.size - 1)}`) : h("div", { class: "muted" }, "not memory-mapped"),
     svg,

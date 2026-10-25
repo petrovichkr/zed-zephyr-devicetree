@@ -418,3 +418,4 @@ main.irqs-split { grid-template-columns: minmax(480px, 60%) 1fr; }
 .irq-table td .badge { margin-left: 6px; }
 .irq-input { width: 90px; }
 .badge.alias { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); font-family: var(--mono); }
+.clk-export { position: sticky; left: 0; top: 0; z-index: 1; padding: 4px; }
