@@ -405,3 +405,15 @@ main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
 .cls-icon { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
 svg.cls-icon { vertical-align: -2px; margin-right: 4px; color: var(--muted); flex: none; }
 .ov-svg path.cls-icon, .bus-svg path.cls-icon { stroke: var(--muted); }
+main.irqs-split { grid-template-columns: minmax(480px, 60%) 1fr; }
+.irqs { overflow: auto; min-height: 0; }
+.irq-ctrl { padding: 6px 10px 12px; }
+.irq-ctrl h2 { font-size: 14px; margin: 8px 0 6px; display: flex; gap: 6px; align-items: center; }
+.irq-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.irq-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 3px 8px; border-bottom: 1px solid var(--border); }
+.irq-table td { padding: 3px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+.irq-table tr.disabled td { opacity: 0.55; }
+.irq-table tr.shared td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.irq-table tr.focus td { background: var(--sel); }
+.irq-table td .badge { margin-left: 6px; }
+.irq-input { width: 90px; }

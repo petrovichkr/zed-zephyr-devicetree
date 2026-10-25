@@ -9,6 +9,7 @@ import { renderDetails } from "./details.js";
 import { h, patch } from "./dom.js";
 import { tail } from "./format.js";
 import { renderClocks } from "./clocks.js";
+import { renderInterrupts } from "./irqs.js";
 import { renderMemory } from "./memory.js";
 import { renderOverview } from "./overview.js";
 import { renderPins } from "./pins.js";
@@ -99,6 +100,7 @@ function tabs(): HTMLElement {
     tab("buses", `Buses${busErrors(state.model)}`),
     tab("memory", `Memory${state.model?.memoryMap.some((x) => x.issues.length) ? " (!)" : ""}`),
     state.model?.clocks ? tab("clocks", `Clocks${state.model.clocks.issues.some((i) => i.severity === "error") ? " (!)" : ""}`) : null,
+    state.model?.interrupts.length ? tab("irqs", "IRQ") : null,
     tab("pins", `Pins${state.model?.pins.conflicts.length ? ` (${state.model.pins.conflicts.length} conflict${state.model.pins.conflicts.length === 1 ? "" : "s"})` : ""}`),
   );
 }
@@ -126,6 +128,7 @@ function body(): HTMLElement {
   if (state.tab === "memory") return h("main", { class: "split memory-split" }, renderMemory(m), renderDetails(m));
   if (state.tab === "clocks") return h("main", { class: "single" }, renderClocks(m));
   if (state.tab === "overview") return h("main", { class: "split overview-split" }, renderOverview(m), renderDetails(m));
+  if (state.tab === "irqs") return h("main", { class: "split irqs-split" }, renderInterrupts(m), renderDetails(m));
   if (state.tab === "buses") return h("main", { class: "split buses-split" }, renderBuses(m), renderDetails(m));
   if (state.tab === "pins") return h("main", { class: "single" }, renderPins(m));
   return h("main", { class: "split" }, renderTree(m), renderDetails(m));

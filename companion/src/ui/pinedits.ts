@@ -18,7 +18,7 @@
 
 import type { UiModel, UiNode } from "./model.js";
 import type { UiPinCatalog } from "./pinfunctions.js";
-import type { UiGpioFlags, UiPinUsage } from "./pins.js";
+import { cellSpans, type UiGpioFlags, type UiPinUsage } from "./pins.js";
 
 export interface PinMoveRequest {
   owner: string;
@@ -301,28 +301,7 @@ export function gpioFlagsText(f: UiGpioFlags): string {
  * Undefined when the entry has no flags cell.
  */
 export function setGpioFlags(value: string, index: number, flags: UiGpioFlags): string | undefined {
-  // top-level cells with their offsets, inside <...> only
-  const spans: { text: string; start: number; end: number }[] = [];
-  let inside = false;
-  let depth = 0;
-  let start = -1;
-  const close = (i: number) => {
-    if (start >= 0) spans.push({ text: value.slice(start, i), start, end: i });
-    start = -1;
-  };
-  for (let i = 0; i < value.length; i++) {
-    const ch = value[i]!;
-    if (!inside) {
-      if (ch === "<") inside = true;
-      continue;
-    }
-    if (ch === "(") depth++;
-    if (ch === ")") depth--;
-    if (depth === 0 && (ch === ">" || /\s/.test(ch))) {
-      close(i);
-      if (ch === ">") inside = false;
-    } else if (start < 0) start = i;
-  }
+  const spans = cellSpans(value);
   let n = 0;
   for (let i = 0; i < spans.length; i++) {
     if (!spans[i]!.text.startsWith("&") || spans[i + 1] === undefined) continue;

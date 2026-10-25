@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
 import { buildClocks, type UiClocks } from "./clocks.js";
+import { buildInterrupts, type UiIrqController } from "./irqs.js";
 import { buildMemoryMap, type UiMemory } from "./memmap.js";
 import { buildOverview, type UiOverview } from "./overview.js";
 import { buildPinCatalog, pinctrlInclude, type UiPinCatalog } from "./pinfunctions.js";
@@ -48,6 +49,8 @@ export interface UiBinding {
   description?: string;
   /** Bus types this node provides to its children (`bus:` in the binding). */
   bus?: string[];
+  /** Names of the interrupt specifier cells of a controller (`interrupt-cells:`). */
+  interruptCells?: string[];
   props: UiBindingProp[];
 }
 
@@ -96,6 +99,8 @@ export interface UiModel {
   overview: UiOverview;
   /** STM32 only. */
   clocks?: UiClocks;
+  /** Interrupt controllers and the lines nodes use. */
+  interrupts: UiIrqController[];
   memory: UiMemoryRegion[];
   /** Flash partitions and RAM regions, for the memory map. */
   memoryMap: UiMemory[];
@@ -211,6 +216,7 @@ export function buildModel(
         file: t.bindingsPath,
         description: t.description,
         bus: t.bus?.length ? t.bus : undefined,
+        interruptCells: Array.isArray(t.zephyrBinding?.["interrupt-cells"]) ? t.zephyrBinding["interrupt-cells"] : undefined,
         props: (t.properties ?? []).filter((p: any) => !p.nameIsRegex).map((p: any) => bindingProp(p, t.zephyrBinding?.properties)),
       };
     }
@@ -263,6 +269,7 @@ export function buildModel(
     buses,
     overview: buildOverview(nodes, bindings, pins, buses, pinCatalog),
     clocks: buildClocks(nodes),
+    interrupts: buildInterrupts(nodes, bindings),
     memoryMap: buildMemoryMap(nodes),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };

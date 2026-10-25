@@ -72,6 +72,29 @@ export function cells(value: string): string[] {
   return out;
 }
 
+/** Top-level cells with their offsets in `value`, inside `<...>` only. */
+export function cellSpans(value: string): { text: string; start: number; end: number }[] {
+  const spans: { text: string; start: number; end: number }[] = [];
+  let inside = false;
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i]!;
+    if (!inside) {
+      if (ch === "<") inside = true;
+      continue;
+    }
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (depth === 0 && (ch === ">" || /\s/.test(ch))) {
+      if (start >= 0) spans.push({ text: value.slice(start, i), start, end: i });
+      start = -1;
+      if (ch === ">") inside = false;
+    } else if (start < 0) start = i;
+  }
+  return spans;
+}
+
 const strings = (value: string) => [...value.matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
 const pad2 = (n: string) => n.padStart(2, "0");
 

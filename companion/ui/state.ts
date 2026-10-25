@@ -5,7 +5,7 @@ import type { UiContext, UiModel } from "../src/ui/model.js";
 import type { UiGpioFlags } from "../src/ui/pins.js";
 import * as api from "./api.js";
 
-export type Tab = "tree" | "overview" | "buses" | "memory" | "pins" | "clocks";
+export type Tab = "tree" | "overview" | "buses" | "memory" | "pins" | "clocks" | "irqs";
 
 export const CUSTOM = "\u0000custom";
 
@@ -75,6 +75,9 @@ export const state = {
   address: null as { path: string; text: string } | null,
   /** Flags of one *-gpios entry being edited (pin panel, details). */
   flagEdit: null as { key: string; draft: UiGpioFlags } | null,
+  /** IRQ tab: also list disabled nodes; cell being edited. */
+  irqDisabled: false,
+  irqEdit: null as { key: string; text: string } | null,
 };
 
 let renderer = (): void => {};
