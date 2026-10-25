@@ -20,6 +20,7 @@ export class BindingsServer {
   private ws?: WestWorkspace;
   private index = new BindingIndex([]);
   private rules: BindingRules = loadRules();
+  private keyCompletion = true;
   private docs = new Map<string, string>();
   private ready: Promise<void> = Promise.resolve();
   private compatibles?: CompatibleIndex;
@@ -32,8 +33,11 @@ export class BindingsServer {
     const p = msg.params;
     switch (msg.method) {
       case "initialize": {
-        const uri = p?.workspaceFolders?.[0]?.uri ?? p?.rootUri;
-        this.ready = this.load(uri ? fileURLToPath(uri) : process.cwd());
+        const uris: string[] = (p?.workspaceFolders ?? []).map((f: any) => f?.uri).filter(Boolean);
+        if (!uris.length && p?.rootUri) uris.push(p.rootUri);
+        // a JSON Schema client (VS Code with redhat.vscode-yaml) completes the keys itself
+        this.keyCompletion = !p?.initializationOptions?.yamlSchema;
+        this.ready = this.load(uris.length ? uris.map((u) => fileURLToPath(u)) : [process.cwd()]);
         return void reply({
           capabilities: {
             textDocumentSync: { openClose: true, change: 1, save: true },
@@ -74,8 +78,12 @@ export class BindingsServer {
     }
   }
 
-  private async load(root: string): Promise<void> {
-    this.ws = await loadWorkspace(root);
+  /** The first folder inside a west workspace wins (multi-root). */
+  private async load(roots: string[]): Promise<void> {
+    for (const root of roots) {
+      this.ws = await loadWorkspace(root);
+      if (this.ws) break;
+    }
     this.rules = loadRules(this.ws?.zephyrBase);
     this.reindex();
     log(`rules: ${this.rules.source}; ${this.index.byName.size} bindings in ${this.index.dirs.length} dirs`);
@@ -182,7 +190,7 @@ export class BindingsServer {
     if (/^\s*(-\s+|include:\s*|name:\s*)[\w.,-]*$/.test(before) && this.inInclude(r.text, pos.line)) {
       return items(this.index.byName.keys(), 17);
     }
-    if (!/^\s*[\w#,.-]*$/.test(before)) return null;
+    if (!this.keyCompletion || !/^\s*[\w#,.-]*$/.test(before)) return null;
     if (indent === 0) return items([...this.rules.topKeys, "include"], 10, ": ");
     if (indent >= 4 && this.inProperties(r.text, pos.line)) return items(this.rules.propKeys, 10, ": ");
     return null;

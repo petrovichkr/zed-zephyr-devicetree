@@ -10,7 +10,7 @@
 // SPEC D33) shows the UI itself and gets dts-lsp's notifications.
 
 import { mkdirSync, watch, writeFileSync, type FSWatcher } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "./jsonrpc.js";
 import { Peer } from "./jsonrpc.js";
@@ -65,8 +65,10 @@ function filesOf(tree: unknown, out = new Set<string>()): Set<string> {
 }
 
 export class Proxy {
-  private root?: string;
-  private ws?: WestWorkspace;
+  /** Workspace folders (multi-root), in the editor's order. */
+  private roots: string[] = [];
+  /** One entry per distinct west topdir among the roots; a folder outside west is its own. */
+  private tops?: { topdir: string; ws?: WestWorkspace }[];
   private external: string[] = [];
   /** ctxName -> context id, as returned by requestContext. */
   private requested = new Map<string, string>();
@@ -100,7 +102,8 @@ export class Proxy {
       build: (name) => {
         const b = this.builds.find((x) => x.ctxName === name);
         // the context name is the build directory relative to the topdir, plus the image
-        const dir = b?.image ? b.ctxName.slice(0, -(b.image.length + 1)) : b?.ctxName;
+        const top = b && this.tops?.find((t) => isUnder(b.buildDir, [t.topdir]));
+        const dir = b && (top ? relative(top.topdir, b.buildDir).split(sep).join("/") : b.buildDir);
         return b && { rebuild: pristineCommand(b.westCommand, dir!), pending: b.pending, create: newOverlayTarget(b, this.external) };
       },
       createOverlay: (name) => this.createOverlay(name),
@@ -130,7 +133,7 @@ export class Proxy {
     switch (msg.method) {
       case "initialize":
         this.initializeId = msg.id;
-        this.root = rootOf(msg.params);
+        this.roots = rootsOf(msg.params);
         this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
         this.client = msg.params?.capabilities?.experimental?.zephyrDevicetree ?? {};
         break;
@@ -160,6 +163,15 @@ export class Proxy {
           return;
         }
         break;
+      case "workspace/didChangeWorkspaceFolders": {
+        const removed = new Set((msg.params?.event?.removed ?? []).map((f: any) => fileURLToPath(f.uri)));
+        const added = (msg.params?.event?.added ?? []).map((f: any) => fileURLToPath(f.uri));
+        this.roots = [...this.roots.filter((r) => !removed.has(r)), ...added.filter((r: string) => !this.roots.includes(r))];
+        this.tops = undefined;
+        this.fingerprint = "";
+        this.scheduleSync(0);
+        break;
+      }
       case "shutdown":
         this.watchers.forEach((w) => w.close());
         clearTimeout(this.timer);
@@ -189,6 +201,8 @@ export class Proxy {
         if (caps) {
           const cmds: string[] = caps.executeCommandProvider?.commands ?? [];
           caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND, OPEN_UI_COMMAND] };
+          // folders added later bring their own builds
+          caps.workspace = { ...caps.workspace, workspaceFolders: { supported: true, changeNotifications: true } };
         }
       } else if (this.codeActions.has(msg.id)) {
         const file = this.codeActions.get(msg.id)!;
@@ -279,16 +293,22 @@ export class Proxy {
 
   /** Push workspace defaults and build contexts to dts-lsp when anything changed. */
   private async sync(): Promise<void> {
-    if (!this.root) return;
-    this.ws ??= await loadWorkspace(this.root);
-    const topdir = this.ws?.topdir ?? this.root;
-    if (this.fingerprint === "" && this.ws) this.external = externalRoots(this.ws);
-    const builds = discoverBuilds(topdir, defaultDiscovery).map((b) => withPendingOverlay(b, this.external));
+    if (!this.roots.length) return;
+    this.tops ??= await loadTops(this.roots);
+    const tops = this.tops;
+    // defaults (Zephyr base, modules) come from the first west workspace
+    const ws = tops.find((t) => t.ws?.zephyrBase)?.ws ?? tops.find((t) => t.ws)?.ws;
+    if (this.fingerprint === "") this.external = [...new Set(tops.flatMap((t) => (t.ws ? externalRoots(t.ws) : [])))];
+    const builds = tops
+      .flatMap((t) => discoverBuilds(t.topdir, defaultDiscovery).map((b) => (tops.length > 1 ? { ...b, ctxName: `${basename(t.topdir)}/${b.ctxName}` } : b)))
+      .map((b) => withPendingOverlay(b, this.external))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
     this.builds = builds;
     const fingerprint = JSON.stringify(builds.map((b) => [b.ctxName, b.mtimeMs, b.pending]));
-    if (this.fingerprint === "" && this.ws) {
-      await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(this.ws, workspaceModules(this.ws)));
-      log(`workspace ${topdir}: zephyr ${this.ws.zephyrBase ?? "not found"}, ${this.ws.projects.length} projects`);
+    if (this.fingerprint === "" && ws) {
+      await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(ws, workspaceModules(ws)));
+      log(`workspace ${ws.topdir}: zephyr ${ws.zephyrBase ?? "not found"}, ${ws.projects.length} projects`);
+      for (const t of tops.filter((t) => t.ws && t.ws !== ws)) log(`also workspace ${t.topdir} (defaults from the first)`);
     }
     if (fingerprint !== this.fingerprint) {
       this.fingerprint = fingerprint;
@@ -312,7 +332,7 @@ export class Proxy {
       await this.preferBuildContext();
       this.uiChanged("contexts", 0);
     }
-    this.watchBuilds(topdir, builds);
+    this.watchBuilds(tops.map((t) => t.topdir), builds);
   }
 
   /**
@@ -339,9 +359,10 @@ export class Proxy {
     return file;
   }
 
-  private watchBuilds(topdir: string, builds: BuildContext[]): void {
+  private watchBuilds(topdirs: string[], builds: BuildContext[]): void {
     this.watchers.forEach((w) => w.close());
-    const dirs = new Set([...defaultDiscovery.buildParents.map((p) => join(topdir, p)), ...builds.map((b) => b.buildDir)]);
+    const parents = topdirs.flatMap((t) => defaultDiscovery.buildParents.map((p) => join(t, p)));
+    const dirs = new Set([...parents, ...builds.map((b) => b.buildDir)]);
     this.watchers = [...dirs].flatMap((d) => {
       try {
         return [watch(d, () => this.scheduleSync())];
@@ -352,9 +373,23 @@ export class Proxy {
   }
 }
 
-function rootOf(params: any): string | undefined {
-  const uri = params?.workspaceFolders?.[0]?.uri ?? params?.rootUri;
-  if (uri) return fileURLToPath(uri);
-  return params?.rootPath ?? undefined;
+function rootsOf(params: any): string[] {
+  const folders: string[] = (params?.workspaceFolders ?? []).map((f: any) => f?.uri).filter((u: unknown) => typeof u === "string");
+  if (folders.length) return folders.map((u) => fileURLToPath(u));
+  if (params?.rootUri) return [fileURLToPath(params.rootUri)];
+  return params?.rootPath ? [params.rootPath] : [];
 }
 
+/**
+ * Folders of one west workspace share its topdir and build directories; each
+ * distinct topdir is scanned once.
+ */
+export async function loadTops(roots: string[]): Promise<{ topdir: string; ws?: WestWorkspace }[]> {
+  const out: { topdir: string; ws?: WestWorkspace }[] = [];
+  for (const root of roots) {
+    const ws = await loadWorkspace(root);
+    const topdir = ws?.topdir ?? root;
+    if (!out.some((t) => t.topdir === topdir)) out.push({ topdir, ws });
+  }
+  return out;
+}

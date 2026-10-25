@@ -7,3 +7,4 @@
 !dist/extension.js
 !dist/companion.cjs
 !dist/dts-lsp/**
+!schemas/**

@@ -35,7 +35,7 @@ async function step(name, fn) {
 
 exports.run = async function run() {
   const file = vscode.Uri.file(process.env.ZEPHYR_FILE);
-  let api, doc;
+  let api, doc, total;
 
   await step("opens the file as dts and activates", async () => {
     doc = await vscode.workspace.openTextDocument(file);
@@ -50,6 +50,7 @@ exports.run = async function run() {
       const list = await api.contexts();
       return list.some((c) => c.active && c.type !== "Ad Hoc") && list;
     });
+    total = ctxs.length;
     console.log(`  ${ctxs.length} contexts, active: ${ctxs.find((c) => c.active).ctxNames.join(", ")}`);
   });
 
@@ -85,5 +86,34 @@ exports.run = async function run() {
       return u && u !== before && u;
     });
     assert.equal((await get(after)).status, 200);
+  });
+
+  await step("binding YAML gets the schema from redhat.vscode-yaml", async () => {
+    if (!vscode.extensions.getExtension("redhat.vscode-yaml")) return console.log("  skipped: redhat.vscode-yaml not installed");
+    const ctx = (await api.contexts()).find((c) => c.active);
+    const base = process.env.ZEPHYR_BASE ?? require("node:path").join(process.env.ZEPHYR_WORKSPACE, "dist/zephyrproject/zephyr");
+    const yamlDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(require("node:path").join(base, "dts/bindings/led/gpio-leds.yaml")));
+    await vscode.window.showTextDocument(yamlDoc);
+    const line = yamlDoc.getText().split("\n").findIndex((l) => l.startsWith("compatible:"));
+    const text = await until("schema hover", async () => {
+      const h = await vscode.commands.executeCommand("vscode.executeHoverProvider", yamlDoc.uri, new vscode.Position(line, 2));
+      const all = (h ?? []).flatMap((x) => x.contents.map((c) => (typeof c === "string" ? c : c.value))).join("\n");
+      return all.includes("Compatible string the binding matches") && all;
+    }, 60_000);
+    assert.ok(text && ctx);
+  });
+
+  await step("a second folder of the same west workspace adds no contexts", async () => {
+    const before = total;
+    const folder = vscode.Uri.file(require("node:path").join(process.env.ZEPHYR_WORKSPACE, "boards"));
+    assert.ok(vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders.length, 0, { uri: folder }));
+    // the companion re-registers every context; wait for the list to settle
+    await wait(3000);
+    const after = await until("contexts after the new folder", async () => {
+      const list = await api.contexts();
+      return list.length >= before && list;
+    }, 120_000);
+    assert.equal(after.length, before);
+    assert.ok(after.every((c) => !c.ctxNames.some((n) => n.startsWith("boards/"))));
   });
 };

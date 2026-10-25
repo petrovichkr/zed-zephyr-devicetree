@@ -3973,10 +3973,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -3990,7 +3990,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep2) {
+          if (!keyProps.anchor && !keyProps.tag && !sep3) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4014,7 +4014,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+        const valueProps = resolveProps.resolveProps(sep3 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4030,7 +4030,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep3, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4121,7 +4121,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep2 = "";
+        let sep3 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4135,13 +4135,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep2 + cb;
-              sep2 = "";
+                comment += sep3 + cb;
+              sep3 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep2 += source;
+                sep3 += source;
               hasSpace = true;
               break;
             default:
@@ -4184,18 +4184,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep2 && !value) {
+          if (!props.anchor && !props.tag && !sep3 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4249,8 +4249,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap2 && !sep2 && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
+        if (!isMap2 && !sep3 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep3, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4262,7 +4262,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+          const valueProps = resolveProps.resolveProps(sep3 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4273,8 +4273,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap2 && !props.found && ctx.options.strict) {
-              if (sep2)
-                for (const st of sep2) {
+              if (sep3)
+                for (const st of sep3) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4291,7 +4291,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep3, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4471,7 +4471,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep2 = "";
+      let sep3 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4488,24 +4488,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep2 === " ")
-            sep2 = "\n";
-          else if (!prevMoreIndented && sep2 === "\n")
-            sep2 = "\n\n";
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          if (sep3 === " ")
+            sep3 = "\n";
+          else if (!prevMoreIndented && sep3 === "\n")
+            sep3 = "\n\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep2 === "\n")
+          if (sep3 === "\n")
             value += "\n";
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          value += sep2 + content;
-          sep2 = " ";
+          value += sep3 + content;
+          sep3 = " ";
           prevMoreIndented = false;
         }
       }
@@ -4687,25 +4687,25 @@ var require_resolve_flow_scalar = __commonJS({
       if (!match)
         return source;
       let res = match[1];
-      let sep2 = " ";
+      let sep3 = " ";
       let pos = first.lastIndex;
       line.lastIndex = pos;
       while (match = line.exec(source)) {
         if (match[1] === "") {
-          if (sep2 === "\n")
-            res += sep2;
+          if (sep3 === "\n")
+            res += sep3;
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          res += sep2 + match[1];
-          sep2 = " ";
+          res += sep3 + match[1];
+          sep3 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep2 + (match?.[1] ?? "");
+      return res + sep3 + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5507,14 +5507,14 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep: sep2, value }) {
+    function stringifyItem({ start, key, sep: sep3, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep2)
-        for (const st of sep2)
+      if (sep3)
+        for (const st of sep3)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -6664,18 +6664,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep2;
+          let sep3;
           if (scalar.end) {
-            sep2 = scalar.end;
-            sep2.push(this.sourceToken);
+            sep3 = scalar.end;
+            sep3.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep2 = [this.sourceToken];
+            sep3 = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep: sep2 }]
+            items: [{ start, key: scalar, sep: sep3 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -6828,15 +6828,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep2 = it.sep;
-                  sep2.push(this.sourceToken);
+                  const sep3 = it.sep;
+                  sep3.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep: sep2 }]
+                    items: [{ start: start2, key, sep: sep3 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7030,13 +7030,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep2 = fc.end.splice(1, fc.end.length);
-            sep2.push(this.sourceToken);
+            const sep3 = fc.end.splice(1, fc.end.length);
+            sep3.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep: sep2 }]
+              items: [{ start, key: fc, sep: sep3 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -7323,14 +7323,14 @@ function readMessages(stream, onMessage) {
   stream.on("data", (chunk) => {
     buf = Buffer.concat([buf, chunk]);
     for (; ; ) {
-      const sep2 = buf.indexOf("\r\n\r\n");
-      if (sep2 < 0) return;
-      const header = buf.subarray(0, sep2).toString("ascii");
+      const sep3 = buf.indexOf("\r\n\r\n");
+      if (sep3 < 0) return;
+      const header = buf.subarray(0, sep3).toString("ascii");
       const len = Number(/content-length:\s*(\d+)/i.exec(header)?.[1]);
       if (!Number.isFinite(len)) throw new Error(`bad LSP header: ${header}`);
-      if (buf.length < sep2 + 4 + len) return;
-      const body2 = buf.subarray(sep2 + 4, sep2 + 4 + len).toString("utf8");
-      buf = buf.subarray(sep2 + 4 + len);
+      if (buf.length < sep3 + 4 + len) return;
+      const body2 = buf.subarray(sep3 + 4, sep3 + 4 + len).toString("utf8");
+      buf = buf.subarray(sep3 + 4 + len);
       onMessage(JSON.parse(body2));
     }
   });
@@ -9601,15 +9601,18 @@ var Proxy2 = class {
       canShowDocument: () => this.canShowDocument,
       build: (name) => {
         const b = this.builds.find((x) => x.ctxName === name);
-        const dir = b?.image ? b.ctxName.slice(0, -(b.image.length + 1)) : b?.ctxName;
+        const top = b && this.tops?.find((t) => isUnder(b.buildDir, [t.topdir]));
+        const dir = b && (top ? (0, import_node_path5.relative)(top.topdir, b.buildDir).split(import_node_path5.sep).join("/") : b.buildDir);
         return b && { rebuild: pristineCommand(b.westCommand, dir), pending: b.pending, create: newOverlayTarget(b, this.external) };
       },
       createOverlay: (name) => this.createOverlay(name)
     });
     this.ui = new UiServer(this.backend);
   }
-  root;
-  ws;
+  /** Workspace folders (multi-root), in the editor's order. */
+  roots = [];
+  /** One entry per distinct west topdir among the roots; a folder outside west is its own. */
+  tops;
   external = [];
   /** ctxName -> context id, as returned by requestContext. */
   requested = /* @__PURE__ */ new Map();
@@ -9651,7 +9654,7 @@ var Proxy2 = class {
     switch (msg.method) {
       case "initialize":
         this.initializeId = msg.id;
-        this.root = rootOf(msg.params);
+        this.roots = rootsOf(msg.params);
         this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
         this.client = msg.params?.capabilities?.experimental?.zephyrDevicetree ?? {};
         break;
@@ -9675,6 +9678,15 @@ var Proxy2 = class {
           return;
         }
         break;
+      case "workspace/didChangeWorkspaceFolders": {
+        const removed = new Set((msg.params?.event?.removed ?? []).map((f) => (0, import_node_url5.fileURLToPath)(f.uri)));
+        const added = (msg.params?.event?.added ?? []).map((f) => (0, import_node_url5.fileURLToPath)(f.uri));
+        this.roots = [...this.roots.filter((r) => !removed.has(r)), ...added.filter((r) => !this.roots.includes(r))];
+        this.tops = void 0;
+        this.fingerprint = "";
+        this.scheduleSync(0);
+        break;
+      }
       case "shutdown":
         this.watchers.forEach((w) => w.close());
         clearTimeout(this.timer);
@@ -9701,6 +9713,7 @@ var Proxy2 = class {
         if (caps) {
           const cmds = caps.executeCommandProvider?.commands ?? [];
           caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND, OPEN_UI_COMMAND] };
+          caps.workspace = { ...caps.workspace, workspaceFolders: { supported: true, changeNotifications: true } };
         }
       } else if (this.codeActions.has(msg.id)) {
         const file = this.codeActions.get(msg.id);
@@ -9781,16 +9794,18 @@ var Proxy2 = class {
   }
   /** Push workspace defaults and build contexts to dts-lsp when anything changed. */
   async sync() {
-    if (!this.root) return;
-    this.ws ??= await loadWorkspace(this.root);
-    const topdir = this.ws?.topdir ?? this.root;
-    if (this.fingerprint === "" && this.ws) this.external = externalRoots(this.ws);
-    const builds = discoverBuilds(topdir, defaultDiscovery).map((b) => withPendingOverlay(b, this.external));
+    if (!this.roots.length) return;
+    this.tops ??= await loadTops(this.roots);
+    const tops = this.tops;
+    const ws = tops.find((t) => t.ws?.zephyrBase)?.ws ?? tops.find((t) => t.ws)?.ws;
+    if (this.fingerprint === "") this.external = [...new Set(tops.flatMap((t) => t.ws ? externalRoots(t.ws) : []))];
+    const builds = tops.flatMap((t) => discoverBuilds(t.topdir, defaultDiscovery).map((b) => tops.length > 1 ? { ...b, ctxName: `${(0, import_node_path5.basename)(t.topdir)}/${b.ctxName}` } : b)).map((b) => withPendingOverlay(b, this.external)).sort((a, b) => b.mtimeMs - a.mtimeMs);
     this.builds = builds;
     const fingerprint = JSON.stringify(builds.map((b) => [b.ctxName, b.mtimeMs, b.pending]));
-    if (this.fingerprint === "" && this.ws) {
-      await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(this.ws, workspaceModules(this.ws)));
-      log2(`workspace ${topdir}: zephyr ${this.ws.zephyrBase ?? "not found"}, ${this.ws.projects.length} projects`);
+    if (this.fingerprint === "" && ws) {
+      await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(ws, workspaceModules(ws)));
+      log2(`workspace ${ws.topdir}: zephyr ${ws.zephyrBase ?? "not found"}, ${ws.projects.length} projects`);
+      for (const t of tops.filter((t2) => t2.ws && t2.ws !== ws)) log2(`also workspace ${t.topdir} (defaults from the first)`);
     }
     if (fingerprint !== this.fingerprint) {
       this.fingerprint = fingerprint;
@@ -9812,7 +9827,7 @@ var Proxy2 = class {
       await this.preferBuildContext();
       this.uiChanged("contexts", 0);
     }
-    this.watchBuilds(topdir, builds);
+    this.watchBuilds(tops.map((t) => t.topdir), builds);
   }
   /**
    * Creates the board overlay of a build that has none and re-registers the
@@ -9838,9 +9853,10 @@ var Proxy2 = class {
     }
     return file;
   }
-  watchBuilds(topdir, builds) {
+  watchBuilds(topdirs, builds) {
     this.watchers.forEach((w) => w.close());
-    const dirs = /* @__PURE__ */ new Set([...defaultDiscovery.buildParents.map((p) => (0, import_node_path5.join)(topdir, p)), ...builds.map((b) => b.buildDir)]);
+    const parents = topdirs.flatMap((t) => defaultDiscovery.buildParents.map((p) => (0, import_node_path5.join)(t, p)));
+    const dirs = /* @__PURE__ */ new Set([...parents, ...builds.map((b) => b.buildDir)]);
     this.watchers = [...dirs].flatMap((d) => {
       try {
         return [(0, import_node_fs6.watch)(d, () => this.scheduleSync())];
@@ -9850,10 +9866,20 @@ var Proxy2 = class {
     });
   }
 };
-function rootOf(params) {
-  const uri = params?.workspaceFolders?.[0]?.uri ?? params?.rootUri;
-  if (uri) return (0, import_node_url5.fileURLToPath)(uri);
-  return params?.rootPath ?? void 0;
+function rootsOf(params) {
+  const folders = (params?.workspaceFolders ?? []).map((f) => f?.uri).filter((u) => typeof u === "string");
+  if (folders.length) return folders.map((u) => (0, import_node_url5.fileURLToPath)(u));
+  if (params?.rootUri) return [(0, import_node_url5.fileURLToPath)(params.rootUri)];
+  return params?.rootPath ? [params.rootPath] : [];
+}
+async function loadTops(roots) {
+  const out = [];
+  for (const root of roots) {
+    const ws = await loadWorkspace(root);
+    const topdir = ws?.topdir ?? root;
+    if (!out.some((t) => t.topdir === topdir)) out.push({ topdir, ws });
+  }
+  return out;
 }
 
 // src/bindings/lsp.ts
@@ -10180,6 +10206,7 @@ var BindingsServer = class {
   ws;
   index = new BindingIndex([]);
   rules = loadRules();
+  keyCompletion = true;
   docs = /* @__PURE__ */ new Map();
   ready = Promise.resolve();
   compatibles;
@@ -10189,8 +10216,10 @@ var BindingsServer = class {
     const p = msg.params;
     switch (msg.method) {
       case "initialize": {
-        const uri = p?.workspaceFolders?.[0]?.uri ?? p?.rootUri;
-        this.ready = this.load(uri ? (0, import_node_url6.fileURLToPath)(uri) : process.cwd());
+        const uris = (p?.workspaceFolders ?? []).map((f) => f?.uri).filter(Boolean);
+        if (!uris.length && p?.rootUri) uris.push(p.rootUri);
+        this.keyCompletion = !p?.initializationOptions?.yamlSchema;
+        this.ready = this.load(uris.length ? uris.map((u) => (0, import_node_url6.fileURLToPath)(u)) : [process.cwd()]);
         return void reply({
           capabilities: {
             textDocumentSync: { openClose: true, change: 1, save: true },
@@ -10229,8 +10258,12 @@ var BindingsServer = class {
         if (msg.id !== void 0 && msg.method) this.client.send({ id: msg.id, error: { code: -32601, message: `unsupported: ${msg.method}` } });
     }
   }
-  async load(root) {
-    this.ws = await loadWorkspace(root);
+  /** The first folder inside a west workspace wins (multi-root). */
+  async load(roots) {
+    for (const root of roots) {
+      this.ws = await loadWorkspace(root);
+      if (this.ws) break;
+    }
     this.rules = loadRules(this.ws?.zephyrBase);
     this.reindex();
     log3(`rules: ${this.rules.source}; ${this.index.byName.size} bindings in ${this.index.dirs.length} dirs`);
@@ -10332,7 +10365,7 @@ ${description ?? ""}
     if (/^\s*(-\s+|include:\s*|name:\s*)[\w.,-]*$/.test(before) && this.inInclude(r.text, pos.line)) {
       return items(this.index.byName.keys(), 17);
     }
-    if (!/^\s*[\w#,.-]*$/.test(before)) return null;
+    if (!this.keyCompletion || !/^\s*[\w#,.-]*$/.test(before)) return null;
     if (indent === 0) return items([...this.rules.topKeys, "include"], 10, ": ");
     if (indent >= 4 && this.inProperties(r.text, pos.line)) return items(this.rules.propKeys, 10, ": ");
     return null;

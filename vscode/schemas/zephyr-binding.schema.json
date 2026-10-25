@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "zephyr-binding://schema/binding.json",
+  "title": "Zephyr devicetree binding",
+  "description": "Structure and key descriptions only. Which keys are allowed is checked by the Zephyr Bindings language server with the rules of the workspace's edtlib.py (SPEC D23), so unknown keys are not errors here.",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "definitions": {
+    "binding": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Short one-line summary of the hardware." },
+        "description": { "type": "string", "description": "What the hardware is; shown in generated documentation." },
+        "compatible": { "type": "string", "description": "Compatible string the binding matches, \"vendor,device\"." },
+        "include": {
+          "description": "Bindings to merge into this one: a file name, a list of names, or entries with filters.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string", "description": "Binding file to include." },
+                      "property-allowlist": { "type": "array", "items": { "type": "string" }, "description": "Only these properties of the included binding are used." },
+                      "property-blocklist": { "type": "array", "items": { "type": "string" }, "description": "These properties of the included binding are dropped." },
+                      "child-binding": { "type": "object", "description": "Filters for the included child-binding." }
+                    },
+                    "required": ["name"]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "bus": {
+          "description": "Bus type(s) this node provides to its children, e.g. i2c or spi.",
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+        },
+        "on-bus": { "type": "string", "description": "This binding only matches nodes on a parent bus of this type." },
+        "properties": {
+          "type": "object",
+          "description": "Properties of matching nodes.",
+          "additionalProperties": { "$ref": "#/definitions/property" }
+        },
+        "child-binding": { "$ref": "#/definitions/binding", "description": "Binding applied to every child node of a matching node." },
+        "examples": { "type": "array", "items": { "type": "string" }, "description": "Devicetree snippets for the documentation." }
+      },
+      "patternProperties": {
+        "-cells$": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of the cells of a specifier for this controller (gpio-cells, clock-cells, …)."
+        }
+      }
+    },
+    "property": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string", "description": "What the property means." },
+        "type": { "type": "string", "description": "Value type: boolean, int, array, uint8-array, string, string-array, phandle, phandles, phandle-array, path, compound." },
+        "required": { "type": "boolean", "description": "The property must be set on every matching node." },
+        "enum": { "type": "array", "description": "Allowed values." },
+        "const": { "description": "The only allowed value." },
+        "default": { "description": "Value used when the node does not set the property." },
+        "deprecated": { "type": "boolean", "description": "Warn when a node sets this property." },
+        "specifier-space": { "type": "string", "description": "Specifier space of a phandle-array whose name does not end in the space name (e.g. foo-gpios uses gpio)." }
+      }
+    }
+  },
+  "allOf": [{ "$ref": "#/definitions/binding" }]
+}

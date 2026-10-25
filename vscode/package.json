@@ -112,6 +112,11 @@
           ],
           "default": "panel",
           "description": "Where the visual devicetree editor opens."
+        },
+        "zephyrDevicetree.bindings.yamlSchema": {
+          "type": "boolean",
+          "default": true,
+          "description": "With the YAML extension (redhat.vscode-yaml) installed, give binding files under dts/bindings/ a JSON Schema for key descriptions and value checks. The Zephyr Bindings server then leaves key completion to it."
         }
       }
     }

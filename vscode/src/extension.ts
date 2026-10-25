@@ -16,6 +16,7 @@ import {
   type StaticFeature,
 } from "vscode-languageclient/node";
 import { VIEW_TYPE, VisualEditorPanel } from "./webview";
+import { registerBindingSchema } from "./yamlschema";
 
 // Must match companion/src/proxy.ts.
 const SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
@@ -37,6 +38,8 @@ let bindings: LanguageClient | undefined;
 const panel = new VisualEditorPanel();
 /** Set while the panel is pointed at a new companion URL without taking focus. */
 let quietOpen = false;
+/** redhat.vscode-yaml took the binding schema (registered once per session). */
+let yamlSchema: Promise<boolean> | undefined;
 let status: vscode.StatusBarItem;
 let log: vscode.OutputChannel;
 
@@ -100,13 +103,15 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     void dts.sendNotification("workspace/didChangeConfiguration", { settings: { devicetree: userSettings() } });
     void refreshStatus();
   }
+  yamlSchema ??= registerBindingSchema(context, () => config().get<boolean>("bindings.yamlSchema", true));
   if (config().get<boolean>("bindings.enable", true)) {
+    const schema = (await yamlSchema) && config().get<boolean>("bindings.yamlSchema", true);
     bindings = new LanguageClient(
       "zephyrDevicetree.bindings",
       "Zephyr Bindings",
       { module: companion, args: ["--bindings"], transport: TransportKind.stdio },
       // The server answers only for files in binding directories (SPEC D22).
-      { documentSelector: [{ scheme: "file", language: "yaml" }], outputChannel: log },
+      { documentSelector: [{ scheme: "file", language: "yaml" }], outputChannel: log, initializationOptions: { yamlSchema: schema } },
     );
     await bindings.start().catch((e) => log.appendLine(`bindings server: ${e}`));
   }
