@@ -74,7 +74,10 @@ jobs:
       - run: npm run package
       - name: Third-party notices are current
         if: runner.os == 'Linux'
-        run: node ../scripts/notices.mjs --check
+        # the notices also read the companion's bundled packages
+        run: |
+          npm ci --prefix ../companion
+          node ../scripts/notices.mjs --check
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:

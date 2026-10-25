@@ -5,7 +5,7 @@
 // contexts derived from them (ARCHITECTURE D3, D9, D10).
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { join, normalize, relative, resolve, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { WestWorkspace } from "./west.js";
 
@@ -99,7 +99,8 @@ function readBuildInfo(file: string): any {
 function contextFromBuildInfo(file: string, ctxName: string, buildDir: string, image?: string, westCommand?: string): BuildContext | undefined {
   const info = readBuildInfo(file);
   const dt = info?.cmake?.devicetree;
-  const files = strings(dt?.files);
+  // CMake writes forward slashes on Windows too; editors and dts-lsp compare native paths (D11)
+  const files = strings(dt?.files).map(normalize);
   if (!files.length) return undefined;
   const dir = join(file, "..");
   const compileCommands = join(dir, "compile_commands.json");
@@ -111,12 +112,12 @@ function contextFromBuildInfo(file: string, ctxName: string, buildDir: string, i
     dtsFile: files[0]!,
     // build_info lists the board dts first, then every overlay in build order
     overlays: files.slice(1),
-    includePaths: strings(dt["include-dirs"]),
-    zephyrBindings: strings(dt["bindings-dirs"]),
+    includePaths: strings(dt["include-dirs"]).map(normalize),
+    zephyrBindings: strings(dt["bindings-dirs"]).map(normalize),
     bindingType: "Zephyr",
     compileCommands: existsSync(compileCommands) ? compileCommands : undefined,
     // APPLICATION_CONFIG_DIR is where Zephyr looks for boards/<board>.overlay
-    appDir: [info.cmake.application?.["configuration-dir"], info.cmake.application?.["source-dir"]].find((d) => typeof d === "string"),
+    appDir: [info.cmake.application?.["configuration-dir"], info.cmake.application?.["source-dir"]].map((d) => (typeof d === "string" ? normalize(d) : undefined)).find(Boolean),
     board: typeof info.cmake.board?.name === "string" ? info.cmake.board.name : undefined,
     westCommand,
   };

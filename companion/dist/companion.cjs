@@ -7471,7 +7471,7 @@ function readBuildInfo(file) {
 function contextFromBuildInfo(file, ctxName, buildDir, image, westCommand) {
   const info = readBuildInfo(file);
   const dt = info?.cmake?.devicetree;
-  const files = strings(dt?.files);
+  const files = strings(dt?.files).map(import_node_path.normalize);
   if (!files.length) return void 0;
   const dir = (0, import_node_path.join)(file, "..");
   const compileCommands = (0, import_node_path.join)(dir, "compile_commands.json");
@@ -7483,12 +7483,12 @@ function contextFromBuildInfo(file, ctxName, buildDir, image, westCommand) {
     dtsFile: files[0],
     // build_info lists the board dts first, then every overlay in build order
     overlays: files.slice(1),
-    includePaths: strings(dt["include-dirs"]),
-    zephyrBindings: strings(dt["bindings-dirs"]),
+    includePaths: strings(dt["include-dirs"]).map(import_node_path.normalize),
+    zephyrBindings: strings(dt["bindings-dirs"]).map(import_node_path.normalize),
     bindingType: "Zephyr",
     compileCommands: (0, import_node_fs2.existsSync)(compileCommands) ? compileCommands : void 0,
     // APPLICATION_CONFIG_DIR is where Zephyr looks for boards/<board>.overlay
-    appDir: [info.cmake.application?.["configuration-dir"], info.cmake.application?.["source-dir"]].find((d) => typeof d === "string"),
+    appDir: [info.cmake.application?.["configuration-dir"], info.cmake.application?.["source-dir"]].map((d) => typeof d === "string" ? (0, import_node_path.normalize)(d) : void 0).find(Boolean),
     board: typeof info.cmake.board?.name === "string" ? info.cmake.board.name : void 0,
     westCommand
   };
