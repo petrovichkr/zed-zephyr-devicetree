@@ -82,3 +82,27 @@ describe("buildPinMap", () => {
     expect(m.unknown).toEqual([{ owner: "/soc/usart1", property: "pinctrl-0", value: "VENDOR_MUX(3)" }]);
   });
 });
+
+describe("GPIO hogs", () => {
+  it("are owners of their pins and conflict with other users", () => {
+    const m = map(
+      node("/soc/gpio@1", { labels: ["gpio1"], compatible: ["espressif,esp32-gpio"], children: ["/soc/gpio@1/en"], p: { "#gpio-cells": "<2>" } }),
+      node("/soc/gpio@1/en", { p: { "gpio-hog": "", gpios: "<4 GPIO_ACTIVE_HIGH>", "output-high": "" } }),
+      node("/leds/a", { p: { gpios: "<&gpio1 4 0>" } }),
+    );
+    expect(m.usages.find((u) => u.owner === "/soc/gpio@1/en")).toMatchObject({ pin: "GPIO36", hog: true, controller: "/soc/gpio@1", flags: "GPIO_ACTIVE_HIGH" });
+    expect(m.conflicts).toEqual(["GPIO36"]);
+  });
+});
+
+describe("gpio-map connectors", () => {
+  it("resolve a connector line to the SoC pin", () => {
+    const m = map(
+      node("/soc/gpio@1", { labels: ["gpioa"], compatible: ["st,stm32-gpio"], p: { "#gpio-cells": "<2>" } }),
+      node("/soc/gpio@2", { labels: ["gpiob"], compatible: ["st,stm32-gpio"], p: { "#gpio-cells": "<2>" } }),
+      node("/connector", { labels: ["arduino_header"], p: { "#gpio-cells": "<2>", "gpio-map-mask": "<0xffffffff 0xffffffc0>", "gpio-map": "<0 0 &gpioa 0 0>, <1 0 &gpioa 1 0>, <5 0 &gpiob 9 0>" } }),
+      node("/soc/spi/dev", { p: { "irq-gpios": "<&arduino_header 5 GPIO_ACTIVE_LOW>" } }),
+    );
+    expect(m.usages).toMatchObject([{ pin: "PB9", nexus: "/connector", controller: "/soc/gpio@2", gpioFlags: { activeLow: true } }]);
+  });
+});

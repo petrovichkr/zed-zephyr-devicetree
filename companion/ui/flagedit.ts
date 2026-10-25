@@ -14,7 +14,7 @@ export const flagKey = (u: UiPinUsage) => `${u.owner}\0${u.property}\0${u.index}
 
 /** Badges that open the editor on click, or the editor itself when it is open. */
 export function editableFlags(u: UiPinUsage): HTMLElement | null {
-  if (!u.gpioFlags || u.index === undefined) return flagBadges(u.gpioFlags);
+  if (!u.gpioFlags || u.index === undefined || u.hog) return flagBadges(u.gpioFlags);
   const key = flagKey(u);
   if (state.flagEdit?.key !== key) {
     const badges = flagBadges(u.gpioFlags) ?? h("span", { class: "flags" }, h("span", { class: "flag muted" }, "active high"));

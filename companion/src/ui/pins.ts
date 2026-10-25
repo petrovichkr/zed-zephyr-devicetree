@@ -28,6 +28,10 @@ export interface UiPinUsage {
   cell?: string;
   /** For `*-gpios`: which entry of the property (0-based). */
   index?: number;
+  /** Connector node (gpio-map) the reference went through: arduino_header. */
+  nexus?: string;
+  /** A gpio-hog child of the controller: not movable, the pin is held by the controller. */
+  hog?: boolean;
   /** For `*-gpios`: the GPIO controller node, when the reference resolves. */
   controller?: string;
   /** For `*-gpios`: the flags cell as written (`(GPIO_ACTIVE_LOW | GPIO_PULL_UP)`) and decoded. */
@@ -178,6 +182,27 @@ export function decodeGpioFlags(text: string): UiGpioFlags {
   };
 }
 
+/**
+ * `gpio-map` row for `line` of a connector: `<child-spec &ctrl parent-spec>` rows,
+ * child specs of the nexus's #gpio-cells, parent specs of the target's. Only the
+ * pin cell is matched (flags pass through, as gpio-map-pass-thru usually says).
+ */
+export function resolveNexus(nodes: Record<string, UiNode>, byLabel: Map<string, UiNode>, nexus: UiNode, line: string): { ctrl: UiNode; line: string } | undefined {
+  const map = nexus.props.find((p) => p.name === "gpio-map");
+  if (!map) return undefined;
+  const count = (n: UiNode | undefined) => Number(cells(n?.props.find((p) => p.name === "#gpio-cells")?.value ?? "")[0]) || 2;
+  const k = count(nexus);
+  const c = cells(map.value);
+  for (let i = 0; i + k < c.length; ) {
+    const ref = c[i + k]!.replace(/^&/, "");
+    const ctrl = /^\{(.+)\}$/.test(ref) ? nodes[ref.slice(1, -1)] : byLabel.get(ref);
+    const pk = count(ctrl);
+    if (ctrl && Number(c[i]) === Number(line) && /^(0x[0-9a-f]+|\d+)$/i.test(c[i]!)) return { ctrl, line: c[i + k + 1]! };
+    i += k + 1 + pk;
+  }
+  return undefined;
+}
+
 export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
   const byLabel = new Map<string, UiNode>();
   for (const n of Object.values(nodes)) for (const l of n.labels) byLabel.set(l, n);
@@ -229,6 +254,27 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
             else unknown.push({ owner: owner.path, property: prop.name, value: ref });
           }
         }
+      } else if (prop.name === "gpios" && owner.props.some((p) => p.name === "gpio-hog")) {
+        // GPIO hog: `gpios = <pin flags>` on the controller's own pins, no phandle
+        const ctrl = Object.values(nodes).find((n) => n.children.includes(owner.path));
+        const k = Number(cells(ctrl?.props.find((p) => p.name === "#gpio-cells")?.value ?? "")[0]) || 2;
+        const c = cells(prop.value);
+        for (let i = 0, index = 0; i < c.length; i += k, index++) {
+          const flags = k > 1 ? c[i + 1] : undefined;
+          usages.push({
+            index,
+            pin: gpioPin(ctrl, ctrl?.labels[0] ?? ctrl?.name ?? "?", c[i]!),
+            function: "GPIO",
+            owner: owner.path,
+            property: prop.name,
+            disabled: owner.disabled || !!ctrl?.disabled,
+            origin: prop.origin,
+            controller: ctrl?.path,
+            hog: true,
+            flags,
+            gpioFlags: flags !== undefined ? decodeGpioFlags(flags) : undefined,
+          });
+        }
       } else if (/(^|-)gpios$/.test(prop.name)) {
         const c = cells(prop.value);
         let index = 0;
@@ -236,14 +282,24 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
           if (!c[i]!.startsWith("&") || c[i + 1] === undefined) continue;
           const label = c[i]!.slice(1);
           // `&gpio0` or `&{/soc/gpio@20}`
-          const ctrl = /^\{(.+)\}$/.test(label) ? nodes[label.slice(1, -1)] : byLabel.get(label);
+          let ctrl = /^\{(.+)\}$/.test(label) ? nodes[label.slice(1, -1)] : byLabel.get(label);
+          let line = c[i + 1]!;
+          // connector (gpio-map): follow the row for this line to the real controller
+          let nexus: string | undefined;
+          const mapped = ctrl && resolveNexus(nodes, byLabel, ctrl, line);
+          if (mapped) {
+            nexus = ctrl!.path;
+            ctrl = mapped.ctrl;
+            line = mapped.line;
+          }
           const flags = c[i + 2] !== undefined && !c[i + 2]!.startsWith("&") ? c[i + 2] : undefined;
           usages.push({
             cell: c[i],
             index: index++,
             // ports are named by the controller's first label, whichever label the reference uses
-            pin: gpioPin(ctrl, ctrl?.labels[0] ?? ctrl?.name ?? label, c[i + 1]!),
+            pin: gpioPin(ctrl, ctrl?.labels[0] ?? ctrl?.name ?? label, line),
             controller: ctrl?.path,
+            nexus,
             flags,
             gpioFlags: flags !== undefined ? decodeGpioFlags(flags) : undefined,
             function: "GPIO",

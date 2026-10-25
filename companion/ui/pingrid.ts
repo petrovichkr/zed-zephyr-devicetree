@@ -78,6 +78,7 @@ function fnClass(fn: string | undefined): string {
 /** What a GPIO is for: LED, KEY, or the property without -gpios (reset, int, cs). */
 export function gpioRole(m: UiModel, u: UiPinUsage): string | undefined {
   if (u.function !== "GPIO") return u.function;
+  if (u.hog) return "HOG";
   const parent = m.nodes[u.owner.slice(0, u.owner.lastIndexOf("/")) || "/"];
   if (u.property === "gpios" && parent?.compatible.includes("gpio-leds")) return "LED";
   if (u.property === "gpios" && parent?.compatible.includes("gpio-keys")) return "KEY";
@@ -151,7 +152,7 @@ function assignForm(m: UiModel, fn: string, pin: string): HTMLElement {
 }
 
 /** Usages that can be moved: decoded pinctrl entries and GPIO entries. */
-const movable = (u: UiPinUsage) => !!u.function && (u.index !== undefined || !!u.ref || !!u.cell);
+const movable = (u: UiPinUsage) => !u.hog && !!u.function && (u.index !== undefined || !!u.ref || !!u.cell);
 
 // Drag state lives outside `state`: re-rendering during a drag would cancel it.
 let dragging: UiPinUsage | null = null;
@@ -246,7 +247,7 @@ function panel(m: UiModel): HTMLElement {
       editableFlags(u),
       " ",
       h("button", { class: "link", onclick: () => select(u.owner) }, m.nodes[u.owner]?.name ?? u.owner),
-      h("span", { class: "muted" }, ` ${usageText(u)}${u.disabled ? ", disabled" : ""} `),
+      h("span", { class: "muted" }, ` ${usageText(u)}${u.nexus ? ` via ${m.nodes[u.nexus]?.labels[0] ?? u.nexus}` : ""}${u.hog ? ", hog" : ""}${u.disabled ? ", disabled" : ""} `),
       h("button", { class: "link mono", title: `Open ${locTitle(u.origin)}`, onclick: () => void openLoc(u.origin) }, locText(u.origin)),
       movable(u) && targets.length
         ? h(
