@@ -3,7 +3,7 @@
 import { request } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applyChanges } from "../src/documents.js";
-import { UiServer, type UiBackend } from "../src/ui/server.js";
+import { isLoopbackHost, UiServer, type UiBackend } from "../src/ui/server.js";
 
 describe("applyChanges", () => {
   it("applies incremental and full changes", () => {
@@ -87,6 +87,13 @@ describe("UiServer", () => {
     expect((await call("/api/contexts")).status).toBe(403);
     expect((await call("/api/contexts", { token: "nope" })).status).toBe(403);
     expect((await call("/api/contexts", { token: token(), host: "evil.example:80" })).status).toBe(403);
+    expect((await call("/api/contexts", { token: token(), host: "localhost.evil.example:80" })).status).toBe(403);
+  });
+
+  it("accepts a forwarded loopback port (VS Code Remote)", async () => {
+    expect((await call("/api/contexts", { token: token(), host: "localhost:41234" })).status).toBe(200);
+    expect(isLoopbackHost("[::1]:8080")).toBe(true);
+    expect(isLoopbackHost("127.0.0.1")).toBe(false);
   });
 
   it("serves the page and the API with the token", async () => {

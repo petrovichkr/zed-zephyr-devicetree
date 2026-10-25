@@ -1,0 +1,138 @@
+{
+  "name": "zephyr-devicetree",
+  "displayName": "Zephyr Devicetree",
+  "description": "Zephyr devicetree for every board: devicetree-language-server, build-aware contexts, a visual editor and binding YAML support",
+  "version": "0.0.1",
+  "publisher": "petrovichkr",
+  "license": "Apache-2.0",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "zephyr",
+    "devicetree",
+    "dts",
+    "overlay"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:dts",
+    "workspaceContains:**/build_info.yml",
+    "workspaceContains:.west/config"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "dts",
+        "aliases": [
+          "Zephyr Devicetree",
+          "Devicetree"
+        ],
+        "extensions": [
+          ".dts",
+          ".dtsi",
+          ".dtso",
+          ".overlay"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dts",
+        "scopeName": "source.devicetree",
+        "path": "./syntaxes/devicetree.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "zephyrDevicetree.openVisualEditor",
+        "title": "Open Visual Editor",
+        "category": "Zephyr Devicetree"
+      },
+      {
+        "command": "zephyrDevicetree.switchContext",
+        "title": "Switch Context",
+        "category": "Zephyr Devicetree"
+      },
+      {
+        "command": "zephyrDevicetree.restartServer",
+        "title": "Restart Language Servers",
+        "category": "Zephyr Devicetree"
+      }
+    ],
+    "configuration": {
+      "title": "Zephyr Devicetree",
+      "properties": {
+        "zephyrDevicetree.languageServer.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run devicetree-language-server through the Zephyr Devicetree companion. Turn off when another extension (nRF DeviceTree) serves .dts files."
+        },
+        "zephyrDevicetree.bindings.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Diagnostics, hover and navigation for Zephyr binding YAML files."
+        },
+        "zephyrDevicetree.server.settings": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "The `devicetree` settings of devicetree-language-server. They override the defaults derived from the west workspace and builds. See the [dts-lsp README](https://github.com/kylebonnici/dts-lsp#settings)."
+        },
+        "zephyrDevicetree.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Use this devicetree-language-server (server.js or an executable) instead of the bundled one. The companion still wraps it."
+        },
+        "zephyrDevicetree.server.arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine-overridable",
+          "description": "Extra arguments for zephyrDevicetree.server.path."
+        },
+        "zephyrDevicetree.visualEditor.openIn": {
+          "type": "string",
+          "enum": [
+            "panel",
+            "browser"
+          ],
+          "enumDescriptions": [
+            "An editor panel inside VS Code",
+            "The default web browser"
+          ],
+          "default": "panel",
+          "description": "Where the visual devicetree editor opens."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "prepare-bundle": "node scripts/prepare.mjs",
+    "build": "npm run prepare-bundle && esbuild src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=dist/extension.js --legal-comments=inline",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node test/run.mjs",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --out dist/zephyr-devicetree.vsix",
+    "test:grammar": "node test/grammar.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.17",
+    "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.6.0",
+    "devicetree-language-server": "0.14.3",
+    "esbuild": "0.25.10",
+    "typescript": "5.9.3",
+    "vscode-languageclient": "9.0.1",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.2.0"
+  }
+}

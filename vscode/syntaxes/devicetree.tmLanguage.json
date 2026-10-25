@@ -1,0 +1,227 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Zephyr Devicetree",
+  "scopeName": "source.devicetree",
+  "comment": "SPDX-License-Identifier: Apache-2.0. Written for zephyr-devicetree; the token classes follow zed/languages/devicetree/highlights.scm.",
+  "patterns": [{ "include": "#top" }],
+  "repository": {
+    "top": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#preprocessor" },
+        { "include": "#directives" },
+        { "include": "#node" },
+        { "include": "#reference-node" },
+        { "include": "#property" },
+        { "include": "#label" },
+        { "include": "#punctuation" }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.devicetree",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.devicetree" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.devicetree" } }
+        },
+        {
+          "name": "comment.line.double-slash.devicetree",
+          "begin": "//",
+          "end": "$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.devicetree" } }
+        }
+      ]
+    },
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.include.devicetree",
+          "begin": "^\\s*(#\\s*include)\\b",
+          "end": "$",
+          "beginCaptures": { "1": { "name": "keyword.control.directive.include.devicetree" } },
+          "patterns": [
+            { "name": "string.quoted.other.lt-gt.include.devicetree", "match": "<[^>]*>" },
+            { "include": "#string" },
+            { "include": "#comments" }
+          ]
+        },
+        {
+          "name": "meta.preprocessor.macro.devicetree",
+          "begin": "^\\s*(#\\s*define)\\s+([A-Za-z_]\\w*)",
+          "end": "(?<!\\\\)$",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.directive.define.devicetree" },
+            "2": { "name": "entity.name.function.preprocessor.devicetree" }
+          },
+          "patterns": [{ "include": "#comments" }, { "include": "#value" }]
+        },
+        {
+          "name": "meta.preprocessor.devicetree",
+          "begin": "^\\s*(#\\s*(?:if|ifdef|ifndef|elif|else|endif|undef|error|warning|pragma|line))\\b",
+          "end": "(?<!\\\\)$",
+          "beginCaptures": { "1": { "name": "keyword.control.directive.devicetree" } },
+          "patterns": [{ "include": "#comments" }, { "include": "#value" }]
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "match": "(/include/)\\s*(\"[^\"]*\")",
+          "captures": {
+            "1": { "name": "keyword.control.directive.include.devicetree" },
+            "2": { "name": "string.quoted.double.devicetree" }
+          }
+        },
+        {
+          "match": "(/delete-node/)\\s*(&[A-Za-z_][\\w]*|[A-Za-z0-9,._+-]+(?:@[0-9A-Za-z,._+-]+)?)",
+          "captures": {
+            "1": { "name": "keyword.other.directive.devicetree" },
+            "2": { "name": "entity.name.tag.devicetree" }
+          }
+        },
+        {
+          "match": "(/delete-property/)\\s*([A-Za-z0-9,._+?#-]+)",
+          "captures": {
+            "1": { "name": "keyword.other.directive.devicetree" },
+            "2": { "name": "variable.other.property.devicetree" }
+          }
+        },
+        {
+          "name": "keyword.other.directive.devicetree",
+          "match": "/(?:dts-v1|plugin|omit-if-no-ref|memreserve|bits)/"
+        }
+      ]
+    },
+    "label": {
+      "match": "([A-Za-z_][\\w]*)(:)",
+      "captures": {
+        "1": { "name": "entity.name.label.devicetree" },
+        "2": { "name": "punctuation.separator.label.devicetree" }
+      }
+    },
+    "node": {
+      "name": "meta.node.devicetree",
+      "begin": "(?:([A-Za-z_][\\w]*)(:)\\s*)*([A-Za-z0-9,._+-]+|/)(?:(@)([0-9A-Za-z,._+-]+))?\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.label.devicetree" },
+        "2": { "name": "punctuation.separator.label.devicetree" },
+        "3": { "name": "entity.name.tag.devicetree" },
+        "4": { "name": "punctuation.separator.unit-address.devicetree" },
+        "5": { "name": "constant.numeric.unit-address.devicetree" },
+        "6": { "name": "punctuation.section.block.begin.devicetree" }
+      },
+      "end": "(\\})\\s*(;)?",
+      "endCaptures": {
+        "1": { "name": "punctuation.section.block.end.devicetree" },
+        "2": { "name": "punctuation.terminator.devicetree" }
+      },
+      "patterns": [{ "include": "#top" }]
+    },
+    "reference-node": {
+      "name": "meta.node.reference.devicetree",
+      "begin": "(?:([A-Za-z_][\\w]*)(:)\\s*)*(&(?:[A-Za-z_][\\w]*|\\{[^}]*\\}))\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.label.devicetree" },
+        "2": { "name": "punctuation.separator.label.devicetree" },
+        "3": { "name": "variable.other.reference.devicetree" },
+        "4": { "name": "punctuation.section.block.begin.devicetree" }
+      },
+      "end": "(\\})\\s*(;)?",
+      "endCaptures": {
+        "1": { "name": "punctuation.section.block.end.devicetree" },
+        "2": { "name": "punctuation.terminator.devicetree" }
+      },
+      "patterns": [{ "include": "#top" }]
+    },
+    "property": {
+      "patterns": [
+        {
+          "name": "meta.property.devicetree",
+          "begin": "([A-Za-z0-9,._+?#-]+)\\s*(=)",
+          "beginCaptures": {
+            "1": { "name": "variable.other.property.devicetree" },
+            "2": { "name": "keyword.operator.assignment.devicetree" }
+          },
+          "end": ";",
+          "endCaptures": { "0": { "name": "punctuation.terminator.devicetree" } },
+          "patterns": [{ "include": "#comments" }, { "include": "#label" }, { "include": "#value" }]
+        },
+        {
+          "match": "([A-Za-z0-9,._+?#-]+)\\s*(;)",
+          "captures": {
+            "1": { "name": "variable.other.property.devicetree" },
+            "2": { "name": "punctuation.terminator.devicetree" }
+          }
+        }
+      ]
+    },
+    "value": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#string" },
+        { "include": "#cells" },
+        { "include": "#bytes" },
+        { "include": "#reference" },
+        { "include": "#expression" },
+        { "name": "keyword.other.directive.devicetree", "match": "/bits/" },
+        { "name": "punctuation.separator.comma.devicetree", "match": "," }
+      ]
+    },
+    "cells": {
+      "name": "meta.cells.devicetree",
+      "begin": "<",
+      "end": ">",
+      "beginCaptures": { "0": { "name": "punctuation.definition.cells.begin.devicetree" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.cells.end.devicetree" } },
+      "patterns": [{ "include": "#comments" }, { "include": "#label" }, { "include": "#reference" }, { "include": "#expression" }]
+    },
+    "bytes": {
+      "name": "meta.bytestring.devicetree",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [{ "include": "#comments" }, { "name": "constant.numeric.hex.devicetree", "match": "[0-9A-Fa-f]{2}" }]
+    },
+    "reference": {
+      "patterns": [
+        { "name": "variable.other.reference.devicetree", "match": "&\\{[^}]*\\}" },
+        { "name": "variable.other.reference.devicetree", "match": "&[A-Za-z_][\\w]*" }
+      ]
+    },
+    "expression": {
+      "patterns": [
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "beginCaptures": { "0": { "name": "punctuation.section.parens.begin.devicetree" } },
+          "endCaptures": { "0": { "name": "punctuation.section.parens.end.devicetree" } },
+          "patterns": [{ "include": "#string" }, { "include": "#reference" }, { "include": "#expression" }, { "name": "punctuation.separator.comma.devicetree", "match": "," }]
+        },
+        { "name": "constant.numeric.hex.devicetree", "match": "\\b0[xX][0-9A-Fa-f]+[uUlL]*\\b" },
+        { "name": "constant.numeric.decimal.devicetree", "match": "\\b[0-9]+[uUlL]*\\b" },
+        { "name": "constant.character.devicetree", "match": "'(?:\\\\.|[^'\\\\])'" },
+        {
+          "match": "\\b([A-Za-z_]\\w*)\\s*(?=\\()",
+          "captures": { "1": { "name": "entity.name.function.macro.devicetree" } }
+        },
+        { "name": "constant.other.macro.devicetree", "match": "\\b[A-Z_][A-Z0-9_]*\\b" },
+        { "name": "keyword.operator.devicetree", "match": "<<|>>|<=|>=|==|!=|&&|\\|\\||[-+*/%&|^~!?:]" },
+        { "name": "variable.other.devicetree", "match": "\\b[a-z_]\\w*\\b" }
+      ]
+    },
+    "string": {
+      "name": "string.quoted.double.devicetree",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.devicetree", "match": "\\\\." }]
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.terminator.devicetree", "match": ";" },
+        { "name": "punctuation.section.block.end.devicetree", "match": "\\}" }
+      ]
+    }
+  }
+}

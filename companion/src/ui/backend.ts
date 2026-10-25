@@ -137,7 +137,7 @@ export class EditorBackend implements UiBackend {
       if (res?.success) return;
     }
     const cli = zedCli();
-    if (!cli) throw new Error("cannot open files in Zed: no showDocument support and no zed CLI on PATH");
+    if (!cli) throw new Error("cannot open the file: the editor has no showDocument support and no zed CLI is on PATH");
     spawn(cli, [`${loc.file}:${loc.line + 1}:${loc.character + 1}`], { detached: true, stdio: "ignore" }).unref();
   }
 
@@ -253,7 +253,7 @@ export class EditorBackend implements UiBackend {
     if (typeof edit === "string") return { applied: false, error: edit };
     const res = await this.h.zed.request("workspace/applyEdit", { label: "Devicetree visual editor", edit });
     if (!res?.applied) log("applyEdit rejected", res?.failureReason ?? "");
-    return { applied: !!res?.applied, error: res?.applied ? undefined : (res?.failureReason ?? "Zed rejected the edit") };
+    return { applied: !!res?.applied, error: res?.applied ? undefined : (res?.failureReason ?? "the editor rejected the edit") };
   }
 }
 

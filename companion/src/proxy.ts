@@ -6,6 +6,8 @@
 // - code actions get "switch context" entries, executed here (SPEC D5);
 // - info/hint diagnostics in SDK and third-party modules are dropped;
 // - "open visual editor" starts the local web UI (SPEC D15, 4.3).
+// A client that declares `experimental.zephyrDevicetree` (the VS Code wrapper,
+// SPEC D33) shows the UI itself and gets dts-lsp's notifications.
 
 import { mkdirSync, watch, writeFileSync, type FSWatcher } from "node:fs";
 import { dirname, join } from "node:path";
@@ -31,6 +33,15 @@ import {
 
 export const SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
 export const OPEN_UI_COMMAND = "zephyr-devicetree.openVisualEditor";
+/** Client request: show the visual editor at `url`; returns `{ success }`. */
+export const SHOW_UI_REQUEST = "zephyrDevicetree/showVisualEditor";
+
+interface ClientFeatures {
+  /** The client handles SHOW_UI_REQUEST (an embedded panel instead of a browser). */
+  showVisualEditor?: boolean;
+  /** Forward dts-lsp's `devicetree/*` notifications instead of dropping them. */
+  notifications?: boolean;
+}
 
 interface ContextListItem {
   id: string;
@@ -71,6 +82,7 @@ export class Proxy {
   private syncing = Promise.resolve();
   private readonly docs = new DocumentStore();
   private canShowDocument = false;
+  private client: ClientFeatures = {};
   private readonly ui: UiServer;
   private readonly backend: EditorBackend;
   private uiTimer?: NodeJS.Timeout;
@@ -120,6 +132,7 @@ export class Proxy {
         this.initializeId = msg.id;
         this.root = rootOf(msg.params);
         this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
+        this.client = msg.params?.capabilities?.experimental?.zephyrDevicetree ?? {};
         break;
       case "initialized":
         this.server.send(msg);
@@ -168,8 +181,8 @@ export class Proxy {
       this.uiChanged(msg.method.slice("devicetree/".length));
     }
     // Zed does not know dts-lsp's own notifications and logs each one with its
-    // full payload, so they stop here.
-    if (msg.method?.startsWith("devicetree/") && msg.id === undefined) return;
+    // full payload, so they stop here unless the client asked for them.
+    if (msg.method?.startsWith("devicetree/") && msg.id === undefined && !this.client.notifications) return;
     if (!msg.method && msg.id !== undefined) {
       if (msg.id === this.initializeId) {
         const caps = msg.result?.capabilities;
@@ -218,6 +231,10 @@ export class Proxy {
   private async openUi(): Promise<void> {
     const url = await this.ui.start();
     log(`visual editor: ${url}`);
+    if (this.client.showVisualEditor) {
+      const res = await this.zed.request(SHOW_UI_REQUEST, { url }).catch(() => undefined);
+      if (res?.success) return;
+    }
     if (this.canShowDocument) {
       const res = await this.zed.request("window/showDocument", { uri: url, external: true }).catch(() => undefined);
       if (res?.success) return;

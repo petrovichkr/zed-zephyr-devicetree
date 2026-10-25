@@ -9187,7 +9187,7 @@ var EditorBackend = class {
       if (res?.success) return;
     }
     const cli = zedCli();
-    if (!cli) throw new Error("cannot open files in Zed: no showDocument support and no zed CLI on PATH");
+    if (!cli) throw new Error("cannot open the file: the editor has no showDocument support and no zed CLI is on PATH");
     (0, import_node_child_process.spawn)(cli, [`${loc.file}:${loc.line + 1}:${loc.character + 1}`], { detached: true, stdio: "ignore" }).unref();
   }
   async catalog(bus) {
@@ -9279,7 +9279,7 @@ var EditorBackend = class {
     if (typeof edit === "string") return { applied: false, error: edit };
     const res = await this.h.zed.request("workspace/applyEdit", { label: "Devicetree visual editor", edit });
     if (!res?.applied) log("applyEdit rejected", res?.failureReason ?? "");
-    return { applied: !!res?.applied, error: res?.applied ? void 0 : res?.failureReason ?? "Zed rejected the edit" };
+    return { applied: !!res?.applied, error: res?.applied ? void 0 : res?.failureReason ?? "the editor rejected the edit" };
   }
 };
 function openExternal(url) {
@@ -9333,7 +9333,7 @@ data: ${JSON.stringify({ reason })}
     for (const c of this.clients) c.write(frame);
   }
   authorized(req, url) {
-    if (req.headers.host !== `127.0.0.1:${this.port}`) return false;
+    if (!isLoopbackHost(req.headers.host)) return false;
     const given = String(req.headers["x-token"] ?? url.searchParams.get("t") ?? "");
     const a = Buffer.from(given);
     const b = Buffer.from(this.token);
@@ -9461,6 +9461,9 @@ async function body(req) {
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
+function isLoopbackHost(host) {
+  return /^(127\.0\.0\.1|localhost|\[::1\]):\d{1,5}$/.test(host ?? "");
+}
 
 // src/west.ts
 var import_node_child_process2 = require("node:child_process");
@@ -9574,6 +9577,7 @@ function readManifestProjects(ws) {
 // src/proxy.ts
 var SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
 var OPEN_UI_COMMAND = "zephyr-devicetree.openVisualEditor";
+var SHOW_UI_REQUEST = "zephyrDevicetree/showVisualEditor";
 var log2 = (...args) => console.error("[companion]", ...args);
 function filesOf(tree, out = /* @__PURE__ */ new Set()) {
   if (Array.isArray(tree)) tree.forEach((t) => filesOf(t, out));
@@ -9622,6 +9626,7 @@ var Proxy2 = class {
   syncing = Promise.resolve();
   docs = new DocumentStore();
   canShowDocument = false;
+  client = {};
   ui;
   backend;
   uiTimer;
@@ -9648,6 +9653,7 @@ var Proxy2 = class {
         this.initializeId = msg.id;
         this.root = rootOf(msg.params);
         this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
+        this.client = msg.params?.capabilities?.experimental?.zephyrDevicetree ?? {};
         break;
       case "initialized":
         this.server.send(msg);
@@ -9688,7 +9694,7 @@ var Proxy2 = class {
     if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/activeContextStableNotification") {
       this.uiChanged(msg.method.slice("devicetree/".length));
     }
-    if (msg.method?.startsWith("devicetree/") && msg.id === void 0) return;
+    if (msg.method?.startsWith("devicetree/") && msg.id === void 0 && !this.client.notifications) return;
     if (!msg.method && msg.id !== void 0) {
       if (msg.id === this.initializeId) {
         const caps = msg.result?.capabilities;
@@ -9731,6 +9737,10 @@ var Proxy2 = class {
   async openUi() {
     const url = await this.ui.start();
     log2(`visual editor: ${url}`);
+    if (this.client.showVisualEditor) {
+      const res = await this.zed.request(SHOW_UI_REQUEST, { url }).catch(() => void 0);
+      if (res?.success) return;
+    }
     if (this.canShowDocument) {
       const res = await this.zed.request("window/showDocument", { uri: url, external: true }).catch(() => void 0);
       if (res?.success) return;

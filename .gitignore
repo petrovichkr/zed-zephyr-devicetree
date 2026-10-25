@@ -15,3 +15,7 @@
 # Companion: dependencies are local; dist/companion.cjs IS committed because
 # zed/src/lib.rs embeds it with include_str! when Zed builds the extension.
 /companion/node_modules/
+
+# VS Code wrapper: dist/ is generated (companion copy, dts-lsp, bundle, .vsix)
+/vscode/node_modules/
+/vscode/dist/

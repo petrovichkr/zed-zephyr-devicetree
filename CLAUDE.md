@@ -1,6 +1,6 @@
 # zed-zephyr-devicetree
 
-Расширение для редактора [Zed](https://zed.dev) с поддержкой Zephyr Devicetree (`.dts`, `.dtsi`,
+Расширение для редакторов [Zed](https://zed.dev) и VS Code (D33) с поддержкой Zephyr Devicetree (`.dts`, `.dtsi`,
 `.overlay`) и YAML-биндингов. Аналог VS Code-расширения nRF DeviceTree, но для всех плат,
 поддерживаемых Zephyr.
 
@@ -28,6 +28,8 @@ zed/                        # Zed-обёртка (D33); `zed: install dev extens
   src/lib.rs                # impl zed::Extension: ставит dts-lsp, пишет и запускает companion
   languages/devicetree/     # config.toml + highlights/brackets/indents/outline/injections.scm
   LICENSE                   # копия корневой: реестр Zed требует лицензию в каталоге расширения
+vscode/                     # VS Code-обёртка (D33): src/extension.ts (два LanguageClient), src/webview.ts, syntaxes/, test/
+  dist/                     # генерируется: extension.js, копия companion.cjs, dts-lsp; не коммитится
 companion/                  # Node/TS LSP-прокси (D15), общий для обоих редакторов: src/{main,proxy,jsonrpc,west,zephyr}.ts, test/
 companion/dist/companion.cjs  # бандл, КОММИТИТСЯ (include_str! в zed/src/lib.rs, D17)
 companion/src/ui/           # визуальный редактор, backend: model.ts (контракт с UI), edits.ts, server.ts, backend.ts
@@ -46,6 +48,11 @@ https://zed.dev/docs/extensions/languages. API меняется, сверять�
   Логи: `zed: open log` или `zed --foreground`.
 - **После правок в `companion/src` или `companion/ui`**: `cd companion && npm run typecheck && npm run typecheck:ui && npm test && npm run build`,
   затем `cargo build` в `zed/`. Без пересборки бандла Zed запустит старый companion.
+- VS Code: `cd vscode && npm run typecheck && npm run build`; `VSCODE_EXEC=/usr/share/code/code npm test`
+  (интеграционный тест на эталоне, временный профиль), `npm run test:grammar <файлы>` после правки
+  TextMate-грамматики, `npm run package` → `dist/zephyr-devicetree.vsix`. Отладка: F5 в `vscode/`.
+- Companion общий: его поведение для Zed не должно меняться от возможностей VS Code — они
+  включаются только через `capabilities.experimental.zephyrDevicetree` клиента.
 - Rust-часть собирается под `wasm32-wasip2` (`rustup target add wasm32-wasip2`).
 - Проверки (в `zed/`): `cargo fmt --check`, `cargo clippy --target wasm32-wasip2`, `cargo test`.
 - После правки `.scm`: `scripts/check_queries.py <файлы эталона>` (venv с `tree-sitter` и

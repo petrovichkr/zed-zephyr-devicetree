@@ -2,7 +2,9 @@
 //
 // Local HTTP server of the visual editor (SPEC D15, 4.3). Listens on 127.0.0.1
 // only, on a random port; every request must carry the per-session token and a
-// loopback Host header (DNS rebinding). Model changes are pushed over SSE.
+// loopback Host header (DNS rebinding). The port in Host may differ when the
+// editor forwards it (VS Code Remote, `asExternalUri`). Model changes are pushed
+// over SSE.
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -60,7 +62,7 @@ export class UiServer {
   }
 
   private authorized(req: IncomingMessage, url: URL): boolean {
-    if (req.headers.host !== `127.0.0.1:${this.port}`) return false;
+    if (!isLoopbackHost(req.headers.host)) return false;
     const given = String(req.headers["x-token"] ?? url.searchParams.get("t") ?? "");
     const a = Buffer.from(given);
     const b = Buffer.from(this.token);
@@ -193,4 +195,9 @@ async function body(req: IncomingMessage): Promise<any> {
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}
+
+/** `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>`; any port. */
+export function isLoopbackHost(host: string | undefined): boolean {
+  return /^(127\.0\.0\.1|localhost|\[::1\]):\d{1,5}$/.test(host ?? "");
 }

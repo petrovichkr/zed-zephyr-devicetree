@@ -18,6 +18,8 @@ Status: MVP and Zephyr bindings support (stages 0–3 of [docs/SPEC.md](docs/SPE
   go-to-definition for `include:`, references from `compatible:` to devicetree sources.
   "Go to Type Definition" on a devicetree node opens its binding.
 
+VS Code: the same core in [`vscode/`](vscode/README.md) (visual editor in an editor panel).
+
 ## Install (development)
 
 1. `rustup target add wasm32-wasip2`
@@ -54,7 +56,7 @@ documented in the [dts-lsp README](https://github.com/kylebonnici/dts-lsp#settin
 ## Development
 
 Layout: `companion/` is the editor-neutral LSP proxy and visual editor (`companion/dist/companion.cjs`,
-committed), `zed/` is the Zed extension that embeds it.
+committed), `zed/` is the Zed extension that embeds it, `vscode/` the VS Code extension.
 
 - In `zed/`: `cargo build --target wasm32-wasip2` / `cargo test` / `cargo clippy --target wasm32-wasip2`
 - `scripts/check_queries.py <files…>` compiles the `.scm` queries and runs them on sample files
