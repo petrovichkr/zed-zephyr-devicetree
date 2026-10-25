@@ -7687,6 +7687,7 @@ var Proxy2 = class {
     if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/contextDeleted") {
       void this.refreshContexts();
     }
+    if (msg.method?.startsWith("devicetree/") && msg.id === void 0) return;
     if (!msg.method && msg.id !== void 0) {
       if (msg.id === this.initializeId) {
         const caps = msg.result?.capabilities;

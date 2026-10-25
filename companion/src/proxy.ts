@@ -114,6 +114,9 @@ export class Proxy {
     if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/contextDeleted") {
       void this.refreshContexts();
     }
+    // Zed does not know dts-lsp's own notifications and logs each one with its
+    // full payload, so they stop here.
+    if (msg.method?.startsWith("devicetree/") && msg.id === undefined) return;
     if (!msg.method && msg.id !== undefined) {
       if (msg.id === this.initializeId) {
         const caps = msg.result?.capabilities;
