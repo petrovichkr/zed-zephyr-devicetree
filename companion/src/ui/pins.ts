@@ -28,6 +28,8 @@ export interface UiPinUsage {
   cell?: string;
   /** For `*-gpios`: which entry of the property (0-based). */
   index?: number;
+  /** For `*-gpios`: the GPIO controller node, when the reference resolves. */
+  controller?: string;
   /** For `*-gpios`: the flags cell as written (`(GPIO_ACTIVE_LOW | GPIO_PULL_UP)`) and decoded. */
   flags?: string;
   gpioFlags?: UiGpioFlags;
@@ -210,13 +212,15 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
         for (let i = 0; i < c.length; i++) {
           if (!c[i]!.startsWith("&") || c[i + 1] === undefined) continue;
           const label = c[i]!.slice(1);
-          const ctrl = byLabel.get(label);
+          // `&gpio0` or `&{/soc/gpio@20}`
+          const ctrl = /^\{(.+)\}$/.test(label) ? nodes[label.slice(1, -1)] : byLabel.get(label);
           const flags = c[i + 2] !== undefined && !c[i + 2]!.startsWith("&") ? c[i + 2] : undefined;
           usages.push({
             cell: c[i],
             index: index++,
             // ports are named by the controller's first label, whichever label the reference uses
-            pin: gpioPin(ctrl, ctrl?.labels[0] ?? label, c[i + 1]!),
+            pin: gpioPin(ctrl, ctrl?.labels[0] ?? ctrl?.name ?? label, c[i + 1]!),
+            controller: ctrl?.path,
             flags,
             gpioFlags: flags !== undefined ? decodeGpioFlags(flags) : undefined,
             function: "GPIO",

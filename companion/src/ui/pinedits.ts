@@ -63,10 +63,10 @@ function replaceCell(value: string, cell: string, next: string): string | undefi
 }
 
 /** GPIO controller label and pin number for a pin name. */
-function gpioOf(catalog: UiPinCatalog, pin: string): { label: string; n: number } | undefined {
+function gpioOf(catalog: UiPinCatalog, pin: string): { ref: string; n: number } | undefined {
   for (const p of catalog.ports) {
     const n = p.pins.indexOf(pin);
-    if (n >= 0) return { label: p.name, n };
+    if (n >= 0) return { ref: p.ref, n };
   }
   return undefined;
 }
@@ -134,7 +134,7 @@ export function planPinMove(model: UiModel, req: PinMoveRequest): PinMovePlan {
       const c = current(u.owner, u.property);
       if (!target || !c) return `cannot locate ${req.to} on a GPIO controller`;
       let k = -1;
-      c.value = c.value.replace(/&([\w]+)(\s+)([^\s>]+)/g, (all, _label: string, space: string) => (++k === u.index ? `&${target.label}${space}${target.n}` : all));
+      c.value = c.value.replace(/&(\w+|\{[^}]*\})(\s+)([^\s>]+)/g, (all, _label: string, space: string) => (++k === u.index ? `${target.ref}${space}${target.n}` : all));
       return k >= u.index ? undefined : `entry ${u.index} of ${u.property} not found`;
     }
     if (catalog.vendor === "stm32" && u.ref) {

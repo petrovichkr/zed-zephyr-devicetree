@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import { buildBuses } from "../src/ui/buses.js";
 import type { UiBinding, UiNode } from "../src/ui/model.js";
 import { buildOverview } from "../src/ui/overview.js";
-import { allowedPins } from "../src/ui/pinedits.js";
+import type { UiModel } from "../src/ui/model.js";
+import { allowedPins, planPinMove } from "../src/ui/pinedits.js";
 import { buildPinCatalog } from "../src/ui/pinfunctions.js";
 import { buildPinMap, decodeGpioFlags } from "../src/ui/pins.js";
 
@@ -115,5 +116,32 @@ describe("external GPIO controller", () => {
     ]);
     expect(items("/keys")).toMatchObject([{ kind: "key", name: "btn_0", aliases: ["sw0"], code: "INPUT_KEY_0", flags: { activeLow: true, pull: "up" } }]);
     expect(items("/backlight")).toMatchObject([{ kind: "pwm-led", pin: "GPIO24", pwm: { controller: "ledc0", channel: "1", period: "50000", inverted: true } }]);
+  });
+});
+
+describe("controller without a label", () => {
+  const all = Object.fromEntries(
+    [
+      node("/", { children: ["/soc", "/leds"] }),
+      node("/soc", { children: ["/soc/i2c@1"] }),
+      node("/soc/i2c@1", { compatible: ["espressif,esp32-i2c"], binding: "i2c", children: ["/soc/i2c@1/gpio@21"] }),
+      node("/soc/i2c@1/gpio@21", { compatible: ["nxp,pca9555"], binding: "pca9555", p: { "gpio-controller": "" } }),
+      node("/leds", { compatible: ["gpio-leds"], binding: "leds", children: ["/leds/a"] }),
+      node("/leds/a", { p: { gpios: "<&{/soc/i2c@1/gpio@21} 2 GPIO_ACTIVE_LOW>" } }),
+    ].map((n) => [n.path, n]),
+  );
+  const pins = buildPinMap(all);
+  const catalog = buildPinCatalog(all, undefined, [], bindings);
+
+  it("resolves &{/path} and names the port after the node", () => {
+    expect(pins.usages[0]).toMatchObject({ pin: "gpio@21.2", controller: "/soc/i2c@1/gpio@21" });
+    expect(catalog.ports[0]).toMatchObject({ name: "gpio@21", ref: "&{/soc/i2c@1/gpio@21}" });
+  });
+
+  it("writes the path reference when a GPIO moves there", () => {
+    const m = { nodes: all, bindings, pins, pinCatalog: catalog } as unknown as UiModel;
+    expect(planPinMove(m, { owner: "/leds/a", function: "GPIO", from: "gpio@21.2", to: "gpio@21.5", overlay: "/o.overlay" })).toEqual({
+      changes: [{ node: "/leds/a", property: "gpios", value: "<&{/soc/i2c@1/gpio@21} 5 GPIO_ACTIVE_LOW>" }],
+    });
   });
 });

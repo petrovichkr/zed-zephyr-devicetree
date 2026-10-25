@@ -71,6 +71,17 @@ export function gpioRole(m: UiModel, u: UiPinUsage): string | undefined {
   return u.property === "gpios" ? "GPIO" : u.property.replace(/-gpios$/, "");
 }
 
+/** Why a used pin has no cell in the grid. */
+function outsideReason(m: UiModel, u: UiPinUsage): string {
+  if (u.index === undefined) return "pinctrl pin of a port that is not in this context";
+  const ctrl = u.controller ? m.nodes[u.controller] : undefined;
+  if (!ctrl) return `${u.cell ?? "the reference"} does not resolve to a node`;
+  if (ctrl.props.some((p) => p.name === "gpio-map")) return `${ctrl.name} is a connector (gpio-map), not resolved to SoC pins`;
+  if (ctrl.disabled) return `controller ${ctrl.name} is disabled`;
+  if (!ctrl.props.some((p) => p.name === "gpio-controller")) return `${ctrl.name} is not a GPIO controller`;
+  return `pin is beyond ngpios of ${ctrl.name}`;
+}
+
 const clipLabel = (s: string): string => (s.length > 9 ? `${s.slice(0, 8)}…` : s);
 
 const shortPin = (pin: string): string => /(\d+)$/.exec(pin)?.[1] ?? pin;
@@ -359,7 +370,21 @@ export function renderPinGrid(m: UiModel): HTMLElement {
       "div",
       { class: "pin-grid", "data-scroll": "pin-grid" },
       rows.length ? rows : h("div", { class: "empty" }, "No GPIO controllers in this context"),
-      outside.length ? h("div", { class: "muted outside" }, `Used pins outside the GPIO controllers: ${outside.join(", ")}`) : null,
+      outside.length
+        ? h(
+            "div",
+            { class: "muted outside" },
+            "Used pins outside the GPIO controllers:",
+            h(
+              "ul",
+              null,
+              outside.map((p) => {
+                const u = byPin.get(p)![0]!;
+                return h("li", null, h("button", { class: "link mono", onclick: () => ((state.pinFocus = p), rerender()) }, p), ` — ${outsideReason(m, u)}`);
+              }),
+            ),
+          )
+        : null,
       h(
         "div",
         { class: "legend" },
