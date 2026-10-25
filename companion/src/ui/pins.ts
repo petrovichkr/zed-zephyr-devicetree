@@ -28,6 +28,19 @@ export interface UiPinUsage {
   cell?: string;
   /** For `*-gpios`: which entry of the property (0-based). */
   index?: number;
+  /** For `*-gpios`: the flags cell as written (`(GPIO_ACTIVE_LOW | GPIO_PULL_UP)`) and decoded. */
+  flags?: string;
+  gpioFlags?: UiGpioFlags;
+}
+
+/** Zephyr GPIO devicetree flags (dt-bindings/gpio/gpio.h). */
+export interface UiGpioFlags {
+  activeLow: boolean;
+  pull?: "up" | "down";
+  /** Single-ended output; push-pull when absent. */
+  drive?: "open-drain" | "open-source";
+  /** Everything else as written: GPIO_INT_WAKEUP, NRF_GPIO_DRIVE_H0H1, STM32_GPIO_HIGH_SPEED, ESP32_GPIO_DS_ALT. */
+  extra: string[];
 }
 
 export interface UiPinMap {
@@ -104,6 +117,42 @@ export function gpioPin(ctrl: UiNode | undefined, label: string, arg: string): s
   return `${label}.${n}`;
 }
 
+const FLAG_BITS: Record<string, number> = {
+  GPIO_ACTIVE_LOW: 1,
+  GPIO_ACTIVE_HIGH: 0,
+  GPIO_PUSH_PULL: 0,
+  GPIO_SINGLE_ENDED: 2,
+  GPIO_LINE_OPEN_DRAIN: 4,
+  GPIO_LINE_OPEN_SOURCE: 0,
+  GPIO_OPEN_DRAIN: 6,
+  GPIO_OPEN_SOURCE: 2,
+  GPIO_PULL_UP: 16,
+  GPIO_PULL_DOWN: 32,
+};
+
+/** `(GPIO_ACTIVE_LOW | GPIO_PULL_UP)`, `0x11`, `GPIO_OPEN_DRAIN | NRF_GPIO_DRIVE_H0H1`. */
+export function decodeGpioFlags(text: string): UiGpioFlags {
+  let bits = 0;
+  const extra: string[] = [];
+  for (const raw of text.replace(/[()\s]/g, "").split("|")) {
+    if (!raw) continue;
+    if (raw in FLAG_BITS) bits |= FLAG_BITS[raw]!;
+    else if (/^(0x[0-9a-f]+|\d+)$/i.test(raw)) {
+      const n = Number(raw);
+      bits |= n & 0x37;
+      if (n & 0x40) extra.push("GPIO_INT_WAKEUP");
+      if (n & ~0x7f) extra.push(`0x${(n & ~0x7f).toString(16)}`);
+    } else extra.push(raw);
+  }
+  const single = (bits & 2) !== 0;
+  return {
+    activeLow: (bits & 1) !== 0,
+    pull: bits & 16 ? "up" : bits & 32 ? "down" : undefined,
+    drive: single ? (bits & 4 ? "open-drain" : "open-source") : undefined,
+    extra,
+  };
+}
+
 export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
   const byLabel = new Map<string, UiNode>();
   for (const n of Object.values(nodes)) for (const l of n.labels) byLabel.set(l, n);
@@ -161,10 +210,15 @@ export function buildPinMap(nodes: Record<string, UiNode>): UiPinMap {
         for (let i = 0; i < c.length; i++) {
           if (!c[i]!.startsWith("&") || c[i + 1] === undefined) continue;
           const label = c[i]!.slice(1);
+          const ctrl = byLabel.get(label);
+          const flags = c[i + 2] !== undefined && !c[i + 2]!.startsWith("&") ? c[i + 2] : undefined;
           usages.push({
             cell: c[i],
             index: index++,
-            pin: gpioPin(byLabel.get(label), label, c[i + 1]!),
+            // ports are named by the controller's first label, whichever label the reference uses
+            pin: gpioPin(ctrl, ctrl?.labels[0] ?? label, c[i + 1]!),
+            flags,
+            gpioFlags: flags !== undefined ? decodeGpioFlags(flags) : undefined,
             function: "GPIO",
             owner: owner.path,
             property: prop.name,

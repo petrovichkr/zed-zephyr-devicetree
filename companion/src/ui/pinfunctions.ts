@@ -10,15 +10,27 @@
 //   WCH    `<FUNC>_P<port><pin>_<remap>` macros of dt-bindings/pinctrl/ch32*-pinctrl.h;
 //          the macro name is what pinmux holds, so it is kept per function and pin
 // Pins come from the GPIO controllers (ngpios, 16 for STM32 ports, 32 otherwise),
-// named like the pin map names them.
+// named like the pin map names them. A GPIO controller below a bus controller
+// (nxp,pca9555 on i2c, mcp23s17 on spi) is external: its pins are GPIO only and
+// it is listed after the SoC ports; its ngpios falls back to the binding's const
+// or default (16 for pca9555).
 
-import type { UiNode } from "./model.js";
+import type { UiBinding, UiNode } from "./model.js";
 import { cells, decodePinmux, gpioPin, labelFunction } from "./pins.js";
 
 export interface UiPort {
   /** GPIO controller label: gpioa, gpio0. */
   name: string;
   pins: string[];
+  /** GPIO controller on a bus (expander): no pinctrl function can reach its pins. */
+  external?: {
+    path: string;
+    compatible?: string;
+    /** Bus controller node. */
+    bus: string;
+    /** Unit address on the bus: `20` for gpio@20. */
+    address?: string;
+  };
 }
 
 export interface UiPinCatalog {
@@ -66,7 +78,32 @@ export function pinctrlInclude(lines: string[]): string | undefined {
 
 const has = (n: UiNode, re: RegExp) => n.compatible.some((c) => re.test(c));
 
-export function buildPinCatalog(nodes: Record<string, UiNode>, header?: { file: string; text: string }, used: string[] = []): UiPinCatalog {
+/** The nearest ancestor whose binding provides a bus (i2c, spi, an MFD), if any. */
+export function busAncestor(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, path: string): UiNode | undefined {
+  const parent = new Map<string, string>();
+  for (const n of Object.values(nodes)) for (const c of n.children) parent.set(c, n.path);
+  for (let p = parent.get(path); p; p = parent.get(p)) {
+    const n = nodes[p];
+    if (n?.binding && bindings[n.binding]?.bus?.length) return n;
+  }
+  return undefined;
+}
+
+/** `ngpios` as written, else (for expanders) the binding's const/default. */
+function ngpios(n: UiNode, bindings?: Record<string, UiBinding>): number | undefined {
+  const written = Number(cells(n.props.find((p) => p.name === "ngpios")?.value ?? "")[0]);
+  if (written || !bindings) return written || undefined;
+  const bp = n.binding ? bindings[n.binding]?.props.find((p) => p.name === "ngpios") : undefined;
+  const v = Number(bp?.const ?? bp?.default);
+  return v || undefined;
+}
+
+export function buildPinCatalog(
+  nodes: Record<string, UiNode>,
+  header?: { file: string; text: string },
+  used: string[] = [],
+  bindings: Record<string, UiBinding> = {},
+): UiPinCatalog {
   const all = Object.values(nodes);
   const vendor: UiPinCatalog["vendor"] = all.some((n) => has(n, /^st,stm32.*gpio/))
     ? "stm32"
@@ -82,7 +119,18 @@ export function buildPinCatalog(nodes: Record<string, UiNode>, header?: { file: 
   const ports: UiPort[] = [];
   for (const n of all) {
     if (n.disabled || !n.props.some((p) => p.name === "gpio-controller") || !n.labels[0]) continue;
-    let count = Number(cells(n.props.find((p) => p.name === "ngpios")?.value ?? "")[0]) || (vendor === "stm32" || vendor === "wch" ? 16 : 32);
+    const bus = busAncestor(nodes, bindings, n.path);
+    if (bus) {
+      const count = ngpios(n, bindings) ?? 32;
+      ports.push({
+        name: n.labels[0],
+        pins: Array.from({ length: count }, (_, i) => gpioPin(n, n.labels[0]!, String(i))),
+        external: { path: n.path, compatible: n.compatible[0], bus: bus.path, address: /@(.+)$/.exec(n.name)?.[1] },
+      });
+      continue;
+    }
+    // SoC ports: the inherited gpio-controller.yaml default (32) is wrong for STM32
+    let count = ngpios(n) ?? (vendor === "stm32" || vendor === "wch" ? 16 : 32);
     // ngpios can undercount (CH32V203 dtsi says 8, the ports have 16): grow the port to
     // the highest pin that pinctrl macros or the devicetree actually use
     const name0 = gpioPin(n, n.labels[0], "0");
@@ -96,8 +144,9 @@ export function buildPinCatalog(nodes: Record<string, UiNode>, header?: { file: 
     ports.push({ name: n.labels[0], pins: Array.from({ length: count }, (_, i) => gpioPin(n, n.labels[0]!, String(i))) });
   }
   const order = (p: string) => p.replace(/\d+/g, (d) => d.padStart(4, "0"));
-  ports.sort((a, b) => order(a.pins[0] ?? a.name).localeCompare(order(b.pins[0] ?? b.name)));
-  const known = new Set(ports.flatMap((p) => p.pins));
+  // SoC ports first, then the expanders
+  ports.sort((a, b) => Number(!!a.external) - Number(!!b.external) || order(a.pins[0] ?? a.name).localeCompare(order(b.pins[0] ?? b.name)));
+  const known = new Set(ports.filter((p) => !p.external).flatMap((p) => p.pins));
 
   const functions: Record<string, string[]> = {};
   const labels: Record<string, string> = {};

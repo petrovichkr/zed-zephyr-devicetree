@@ -261,6 +261,8 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .ov-svg .lead.error { stroke: var(--danger); opacity: 1; }
 .ov-svg .pin { fill: var(--fg); font-family: var(--mono); font-size: 11px; }
 .ov-svg .pin:hover { fill: var(--accent); text-decoration: underline; }
+.ov-svg .lead.ext { stroke-dasharray: 3 2; }
+.ov-svg .pin.ext { fill: var(--muted); font-style: italic; }
 .ov-svg .pin.off { fill: var(--muted); }
 .ov-svg .pin.error { fill: var(--danger); font-weight: 600; }
 .ov-svg .switch circle { fill: var(--ok); stroke: var(--bg); stroke-width: 1.5; }
@@ -300,6 +302,9 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .swatch.conflict-sw { background: var(--danger); }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; }
 .outside { margin-top: 8px; }
+.ext-head { margin: 14px 0 4px; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.04em; }
+.ext-port { margin: 6px 0 3px; font-size: 12px; }
+.pcell.ext { border-style: dashed; border-top-style: solid; }
 .pin-panel { overflow: auto; padding: 10px 14px; }
 .pin-panel h2 { margin: 0 0 6px; font-size: 16px; font-family: var(--mono); }
 .pin-panel h3 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.04em; }

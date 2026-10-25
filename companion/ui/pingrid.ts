@@ -7,6 +7,7 @@
 
 import type { UiModel } from "../src/ui/model.js";
 import { allowedPins, pinctrlOwners, suggestOwner } from "../src/ui/pinedits.js";
+import type { UiPort } from "../src/ui/pinfunctions.js";
 import type { UiPinUsage } from "../src/ui/pins.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
@@ -28,6 +29,24 @@ function functionsOn(m: UiModel, pin: string): string[] {
   return inverse.map.get(pin) ?? [];
 }
 
+/** Pin -> external GPIO controller (expander) it belongs to. */
+let externals: { model: UiModel; map: Map<string, UiPort> } | null = null;
+function externalPort(m: UiModel, pin: string): UiPort | undefined {
+  if (externals?.model !== m) {
+    const map = new Map<string, UiPort>();
+    for (const port of m.pinCatalog.ports) if (port.external) for (const p of port.pins) map.set(p, port);
+    externals = { model: m, map };
+  }
+  return externals.map.get(pin);
+}
+
+/** `pca9555 on i2c0 @0x20` */
+export function externalText(m: UiModel, port: UiPort): string {
+  const e = port.external!;
+  const bus = m.nodes[e.bus];
+  return `${e.compatible?.split(",").pop() ?? "GPIO controller"} on ${bus?.labels[0] ?? bus?.name ?? e.bus}${e.address ? ` @0x${e.address}` : ""}`;
+}
+
 function fnClass(fn: string | undefined): string {
   const f = (fn ?? "").toLowerCase();
   if (f === "gpio") return "c-gpio";
@@ -40,6 +59,8 @@ function fnClass(fn: string | undefined): string {
   if (/usb|eth|sdmmc|sdio|i2s|sai/.test(f)) return "c-fast";
   return "c-other";
 }
+
+const clipLabel = (s: string): string => (s.length > 9 ? `${s.slice(0, 8)}…` : s);
 
 const shortPin = (pin: string): string => /(\d+)$/.exec(pin)?.[1] ?? pin;
 
@@ -103,7 +124,8 @@ let dragging: UiPinUsage | null = null;
 function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string, UiPinUsage[]>): HTMLElement {
   const us = byPin.get(pin) ?? [];
   const main = us.find(active) ?? us.find(isDefault) ?? us[0];
-  const reachable = m.pinCatalog.anyPin || m.pinCatalog.vendor === "other" || us.length > 0 || functionsOn(m, pin).length > 0;
+  const ext = externalPort(m, pin);
+  const reachable = !!ext || m.pinCatalog.anyPin || m.pinCatalog.vendor === "other" || us.length > 0 || functionsOn(m, pin).length > 0;
   const drag = us.find((u) => active(u) && movable(u)) ?? us.find(movable);
   const cls = [
     "pcell",
@@ -111,11 +133,12 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
     main && !us.some(active) ? "idle" : "",
     conflicts.has(pin) ? "conflict" : "",
     reachable ? "" : "na",
+    ext ? "ext" : "",
     state.pinFocus === pin ? "focus" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  const title = [pin, ...us.map((u) => `${u.function ?? "?"} — ${m.nodes[u.owner]?.name ?? u.owner} (${usageText(u)})${u.disabled ? ", disabled" : ""}`), reachable ? "" : "no function can use this pin"]
+  const title = [pin, ...us.map((u) => `${u.function ?? "?"} — ${m.nodes[u.owner]?.name ?? u.owner} (${usageText(u)})${u.disabled ? ", disabled" : ""}`), reachable ? "" : "no function can use this pin", ext ? `GPIO only: ${externalText(m, ext)}` : ""]
     .filter(Boolean)
     .join("\n");
   return h(
@@ -164,7 +187,8 @@ function panel(m: UiModel): HTMLElement {
   const pin = state.pinFocus;
   if (!pin) return h("div", { class: "empty" }, "Click a pin to see who uses it and which functions it can take. Drag a used pin onto another one to move its function.");
   const us = m.pins.usages.filter((u) => u.pin === pin);
-  const fns = functionsOn(m, pin);
+  const ext = externalPort(m, pin);
+  const fns = ext ? [] : functionsOn(m, pin);
   const q = state.fnFilter.trim().toLowerCase();
   const usedBy = (fn: string) => m.pins.usages.filter((u) => u.function === fn && active(u) && movable(u));
   // functions in use come first: they are the ones that can be moved here
@@ -214,8 +238,16 @@ function panel(m: UiModel): HTMLElement {
     h("h2", null, pin, m.pins.conflicts.includes(pin) ? h("span", { class: "badge error" }, "conflict") : null),
     h("h3", null, `Used by (${us.length})`),
     us.length ? h("ul", { class: "usages" }, us.map(usage)) : h("div", { class: "muted" }, "Free"),
-    h("h3", null, m.pinCatalog.anyPin ? "Functions" : `Functions this pin can take (${fns.length})`),
-    m.pinCatalog.anyPin
+    h("h3", null, m.pinCatalog.anyPin || ext ? "Functions" : `Functions this pin can take (${fns.length})`),
+    ext
+      ? h(
+          "div",
+          { class: "muted" },
+          "GPIO only: this pin belongs to the external GPIO controller ",
+          h("button", { class: "link mono", onclick: () => select(ext.external!.path) }, ext.name),
+          ` (${externalText(m, ext)}). Peripheral functions cannot be routed here; drag a GPIO here to move it.`,
+        )
+      : m.pinCatalog.anyPin
       ? h("div", { class: "muted" }, "Any peripheral function can be routed to any pin on this SoC: drag a used pin here or use “Move to”.")
       : fns.length
         ? [
@@ -286,11 +318,25 @@ export function renderPinGrid(m: UiModel): HTMLElement {
   const outside = [...byPin.keys()].filter((p) => !known.has(p));
 
   const rows: HTMLElement[] = [];
+  let externalHead = false;
   for (const port of m.pinCatalog.ports) {
+    if (port.external) {
+      if (!externalHead) rows.push(h("h3", { class: "ext-head" }, "External GPIO controllers"));
+      externalHead = true;
+      const used = new Set(port.pins.filter((p) => byPin.get(p)?.some(active))).size;
+      rows.push(
+        h(
+          "div",
+          { class: "ext-port" },
+          h("button", { class: "link mono", title: `Select ${port.external.path}`, onclick: () => select(port.external!.path) }, port.name),
+          h("span", { class: "muted" }, ` · ${externalText(m, port)} · ${port.pins.length} lines, ${used} used`),
+        ),
+      );
+    }
     for (let i = 0; i < port.pins.length; i += 16) {
       const chunk = port.pins.slice(i, i + 16);
-      const label = m.pinCatalog.vendor === "stm32" ? chunk[0]!.replace(/\d+$/, "") : `${chunk[0]}`;
-      rows.push(h("div", { class: "prow" }, h("span", { class: "plabel mono", title: port.name }, label), chunk.map((p) => cell(m, p, conflicts, byPin))));
+      const label = port.external ? (i ? "" : port.name) : m.pinCatalog.vendor === "stm32" ? chunk[0]!.replace(/\d+$/, "") : `${chunk[0]}`;
+      rows.push(h("div", { class: "prow" }, h("span", { class: "plabel mono", title: port.name }, clipLabel(label)), chunk.map((p) => cell(m, p, conflicts, byPin))));
     }
   }
 

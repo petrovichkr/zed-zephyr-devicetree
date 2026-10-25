@@ -107,19 +107,21 @@ function column(m: UiModel, groups: UiOverviewGroup[], side: "left" | "right", o
         const py = y + 12 + i * PIN_ROW + PIN_ROW / 2 - 2;
         const lead = side === "left" ? [outer - LEAD, outer] : [outer, outer + LEAD];
         const fn = p.owner === b.path ? p.function : `${m.nodes[p.owner]?.name ?? p.owner}: ${p.function ?? ""}`;
+        const ext = p.via ? " ext" : "";
+        const via = p.via ? `\nvia the external GPIO controller ${p.via}: not a SoC pin` : "";
         out.push(
-          s("line", { class: `lead${b.disabled ? " off" : ""}${p.conflict ? " error" : ""}`, x1: lead[0], y1: py, x2: lead[1], y2: py }),
+          s("line", { class: `lead${ext}${b.disabled ? " off" : ""}${p.conflict ? " error" : ""}`, x1: lead[0], y1: py, x2: lead[1], y2: py }),
           s(
             "text",
             {
               x: side === "left" ? outer - LEAD - 4 : outer + LEAD + 4,
               y: py + 4,
               "text-anchor": side === "left" ? "end" : "start",
-              class: `pin${b.disabled ? " off" : ""}${p.conflict ? " error" : ""}`,
+              class: `pin${ext}${b.disabled ? " off" : ""}${p.conflict ? " error" : ""}`,
               onclick: () => showPin(p.pin),
             },
-            s("title", {}, `${p.pin} ${fn ?? ""}${p.conflict ? "\nconflict: used by more than one enabled owner" : ""}\nclick: show in Pins tab`),
-            p.pin,
+            s("title", {}, `${p.pin} ${fn ?? ""}${via}${p.conflict ? "\nconflict: used by more than one enabled owner" : ""}\nclick: show in Pins tab`),
+            p.via ? `${clip(p.via, 6)}.${p.pin.slice(p.via.length + 1)}` : p.pin,
           ),
         );
       });
@@ -197,7 +199,7 @@ export function renderOverview(m: UiModel): HTMLElement {
       h(
         "span",
         { class: conflicts ? "summary error-text" : "summary muted" },
-        `${all.length - off} enabled peripherals, ${m.pins.usages.length ? new Set(all.flatMap((b) => b.pins.map((p) => p.pin))).size : 0} pins`,
+        `${all.length - off} enabled peripherals, ${m.pins.usages.length ? new Set(all.flatMap((b) => b.pins.filter((p) => !p.via).map((p) => p.pin))).size : 0} pins`,
         conflicts ? `, ${conflicts} pin conflict${conflicts === 1 ? "" : "s"}` : "",
       ),
       h("span", { class: "muted" }, "click: select · double click: open in Tree · ● enable/disable"),

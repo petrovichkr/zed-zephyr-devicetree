@@ -92,7 +92,9 @@ function wchRemapClash(model: UiModel, owner: string, macro: string, except?: st
 }
 
 export function allowedPins(catalog: UiPinCatalog, fn: string): string[] {
-  if (fn === "GPIO" || catalog.anyPin) return catalog.ports.flatMap((p) => p.pins);
+  if (fn === "GPIO") return catalog.ports.flatMap((p) => p.pins);
+  // pinctrl functions never reach the pins of an external GPIO controller
+  if (catalog.anyPin) return catalog.ports.filter((p) => !p.external).flatMap((p) => p.pins);
   return catalog.functions[fn] ?? [];
 }
 

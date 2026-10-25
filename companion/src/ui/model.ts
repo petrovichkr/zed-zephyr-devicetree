@@ -27,6 +27,9 @@ export interface UiBindingProp {
   type: string; // EMPTY | U32 | U64 | STRING | PROP_ENCODED_ARRAY | STRINGLIST | BYTESTRING | ANY | UNKNOWN
   required: boolean;
   enum?: (string | number)[];
+  /** `const:` or `default:` of the binding YAML (ngpios: 16 for nxp,pca9555). */
+  const?: unknown;
+  default?: unknown;
   description?: string;
 }
 
@@ -148,12 +151,15 @@ export function valueText(propertySource: string): string {
 
 const words = (w: unknown): number => (Array.isArray(w) ? w.reduce((acc: number, x: number) => acc * 2 ** 32 + x, 0) : 0);
 
-function bindingProp(p: any): UiBindingProp {
+function bindingProp(p: any, yaml: Record<string, any> | undefined): UiBindingProp {
+  const y = yaml?.[p.name];
   return {
     name: p.name,
     type: p.type?.[0]?.types?.[0] ?? "UNKNOWN",
     required: !!p.required,
     enum: p.allowedValues?.length ? p.allowedValues : undefined,
+    const: y?.const,
+    default: y?.default,
     description: p.description,
   };
 }
@@ -205,7 +211,7 @@ export function buildModel(
         file: t.bindingsPath,
         description: t.description,
         bus: t.bus?.length ? t.bus : undefined,
-        props: (t.properties ?? []).filter((p: any) => !p.nameIsRegex).map(bindingProp),
+        props: (t.properties ?? []).filter((p: any) => !p.nameIsRegex).map((p: any) => bindingProp(p, t.zephyrBinding?.properties)),
       };
     }
 
@@ -246,15 +252,16 @@ export function buildModel(
   }
   const pins = buildPinMap(nodes);
   const buses = buildBuses(nodes, bindings, pins);
+  const pinCatalog = buildPinCatalog(nodes, pinctrlHeader(nodes, src, includePaths), pins.usages.map((u) => u.pin), bindings);
   return {
     context,
     root: "/",
     nodes,
     bindings,
     pins,
-    pinCatalog: buildPinCatalog(nodes, pinctrlHeader(nodes, src, includePaths), pins.usages.map((u) => u.pin)),
+    pinCatalog,
     buses,
-    overview: buildOverview(nodes, bindings, pins, buses),
+    overview: buildOverview(nodes, bindings, pins, buses, pinCatalog),
     clocks: buildClocks(nodes),
     memoryMap: buildMemoryMap(nodes),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),

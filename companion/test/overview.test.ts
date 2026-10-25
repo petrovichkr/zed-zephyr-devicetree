@@ -75,8 +75,8 @@ describe("buildOverview", () => {
     expect(i2c.devices).toBe(1);
     // the accelerometer's GPIO15 is shared with the disabled UART: no conflict
     expect(i2c.pins).toEqual([
-      { pin: "GPIO15", function: "GPIO", owner: "/soc/i2c@1/accel@19", conflict: false },
-      { pin: "GPIO21", function: "I2C1_SDA", owner: "/soc/i2c@1", conflict: false },
+      { pin: "GPIO15", function: "GPIO", owner: "/soc/i2c@1/accel@19", property: "irq-gpios", conflict: false },
+      { pin: "GPIO21", function: "I2C1_SDA", owner: "/soc/i2c@1", property: "pinctrl-0", conflict: false },
     ]);
     expect(o.groups[0]!.blocks[1]).toMatchObject({ disabled: true, pins: [{ pin: "GPIO15", owner: "/soc/uart@3" }] });
   });

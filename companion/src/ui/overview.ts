@@ -6,9 +6,12 @@
 // regions (shown in the SoC box). Pins of nested nodes (bus devices, flash
 // partitions, GPIO ports under a pin controller) go to the enclosing block. The
 // class is the directory of the binding: dts/bindings/<class>/...
+// Pins of an external GPIO controller (expander on a bus) are not SoC pins:
+// they carry `via` and are drawn apart from the SoC edge.
 
 import { cellNumber, type UiBus } from "./buses.js";
 import type { UiBinding, UiNode } from "./model.js";
+import type { UiPinCatalog } from "./pinfunctions.js";
 import type { UiPinMap } from "./pins.js";
 
 export interface UiOverviewPin {
@@ -16,7 +19,11 @@ export interface UiOverviewPin {
   function?: string;
   /** Node that uses the pin: the block itself or a node below it. */
   owner: string;
+  /** pinctrl-0, reset-gpios, ... */
+  property: string;
   conflict: boolean;
+  /** External GPIO controller (its label) the pin belongs to. */
+  via?: string;
 }
 
 export interface UiPeripheral {
@@ -61,7 +68,9 @@ export const bindingClass = (file: string | undefined): string => /[\\/]dts[\\/]
 
 const shortCompat = (c: string) => c.split(",").pop() ?? c;
 
-export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, pins: UiPinMap, buses: UiBus[]): UiOverview {
+export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, pins: UiPinMap, buses: UiBus[], catalog?: UiPinCatalog): UiOverview {
+  const external = new Map<string, string>();
+  for (const port of catalog?.ports ?? []) if (port.external) for (const p of port.pins) external.set(p, port.name);
   const parent = new Map<string, string>();
   for (const n of Object.values(nodes)) for (const c of n.children) parent.set(c, n.path);
 
@@ -97,7 +106,7 @@ export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<st
     while (p && !blocks.has(p)) p = parent.get(p);
     const block = p && blocks.get(p);
     if (!block || block.pins.some((x) => x.pin === u.pin && x.owner === u.owner)) continue;
-    block.pins.push({ pin: u.pin, function: u.function, owner: u.owner, conflict: conflicts.has(u.pin) });
+    block.pins.push({ pin: u.pin, function: u.function, owner: u.owner, property: u.property, conflict: conflicts.has(u.pin), via: external.get(u.pin) });
   }
 
   const groups = new Map<string, UiPeripheral[]>();
