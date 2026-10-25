@@ -339,3 +339,34 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .clk-params tr.changed td:first-child { color: var(--warn); font-weight: 600; }
 .clk-params input[type="number"] { width: 110px; }
 .clk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+/* Memory tab: memory map */
+main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
+.memory { border-right: 1px solid var(--border); }
+.mem-cols { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px; align-items: flex-start; }
+.mem-col { border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--bg2); }
+.mem-col.off { opacity: 0.6; }
+.mem-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mem-name { font-weight: 600; }
+.mem-hint { padding: 0 12px; }
+.mem-more { margin: 8px 12px; }
+.mem-more summary { cursor: pointer; color: var(--muted); }
+.mem-svg { display: block; margin-top: 6px; font: 12px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
+.mem-svg .addr { fill: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.mem-svg .tick { stroke: var(--muted); }
+.mem-svg .t1 { fill: #10131a; font-weight: 600; }
+.mem-svg .t2 { fill: #10131a; font-family: var(--mono); font-size: 10.5px; opacity: 0.85; }
+.mem-svg g.mseg { cursor: pointer; }
+.mem-svg g.mseg rect { stroke: var(--bg); stroke-width: 1; }
+.mem-svg g.mseg.c0 rect { fill: var(--seg0); } .mem-svg g.mseg.c1 rect { fill: var(--seg1); } .mem-svg g.mseg.c2 rect { fill: var(--seg2); }
+.mem-svg g.mseg.c3 rect { fill: var(--seg3); } .mem-svg g.mseg.c4 rect { fill: var(--seg4); } .mem-svg g.mseg.c5 rect { fill: var(--seg5); }
+.mem-svg g.mseg:hover rect { filter: brightness(1.12); }
+.mem-svg g.mseg.off rect { opacity: 0.4; }
+.mem-svg g.mseg.selected rect { stroke: var(--fg); stroke-width: 2.5; }
+.mem-svg g.mseg.overlap rect { stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 5 3; }
+.mem-svg g.gap rect { fill: var(--bg); stroke: var(--border); stroke-dasharray: 3 3; }
+.mem-svg g.gap .t2 { fill: var(--muted); opacity: 1; }
+.mem-svg g.gap.can-add { cursor: copy; }
+.mem-svg g.gap.can-add:hover rect { fill: var(--hover); stroke: var(--accent); }
+.mem-svg g.gap.ram { cursor: pointer; }
+.mem-svg g.gap.ram rect { fill: var(--code); stroke-dasharray: none; }

@@ -97,7 +97,7 @@ function tabs(): HTMLElement {
     tab("tree", "Tree"),
     tab("overview", "Overview"),
     tab("buses", `Buses${busErrors(state.model)}`),
-    tab("memory", `Memory${state.model ? ` (${state.model.memory.length})` : ""}`),
+    tab("memory", `Memory${state.model?.memoryMap.some((x) => x.issues.length) ? " (!)" : ""}`),
     state.model?.clocks ? tab("clocks", `Clocks${state.model.clocks.issues.some((i) => i.severity === "error") ? " (!)" : ""}`) : null,
     tab("pins", `Pins${state.model?.pins.conflicts.length ? ` (${state.model.pins.conflicts.length} conflict${state.model.pins.conflicts.length === 1 ? "" : "s"})` : ""}`),
   );
@@ -123,7 +123,7 @@ function body(): HTMLElement {
   const m = state.model;
   if (!state.loaded) return h("main", { class: "center muted" }, "Loading…");
   if (!m) return h("main", { class: "center muted" }, "Waiting for devicetree context… Open a .dts or .overlay file in Zed.");
-  if (state.tab === "memory") return h("main", { class: "single" }, renderMemory(m));
+  if (state.tab === "memory") return h("main", { class: "split memory-split" }, renderMemory(m), renderDetails(m));
   if (state.tab === "clocks") return h("main", { class: "single" }, renderClocks(m));
   if (state.tab === "overview") return h("main", { class: "split overview-split" }, renderOverview(m), renderDetails(m));
   if (state.tab === "buses") return h("main", { class: "split buses-split" }, renderBuses(m), renderDetails(m));

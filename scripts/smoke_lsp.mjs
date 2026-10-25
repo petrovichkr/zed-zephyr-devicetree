@@ -186,6 +186,15 @@ if (process.env.UI_CHECK) {
       console.log("ui edits:", JSON.stringify(res), JSON.stringify(edits));
     }
   }
+  // memory map: a partition in the first free flash gap
+  const gapIn = (model.memoryMap ?? []).find((x) => x.partitions && x.gaps.length);
+  console.log(`ui memory map: ${(model.memoryMap ?? []).map((x) => `${x.name} ${x.segments.length}/${x.gaps.length}`).join(", ")}`);
+  if (gapIn) {
+    const g = gapIn.gaps[0];
+    edits.length = 0;
+    const res = await (await api("/api/add-node", { parentPath: gapIn.partitions, overlay, name: `partition@${g.offset.toString(16)}`, label: "smoke_partition", props: [{ name: "label", value: '"smoke"' }, { name: "reg", value: `<0x${g.offset.toString(16)} 0x${g.size.toString(16)}>` }] })).json();
+    console.log("ui add partition:", JSON.stringify(res), JSON.stringify(edits));
+  }
   // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
   const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
   console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);

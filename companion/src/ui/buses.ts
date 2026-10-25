@@ -61,13 +61,15 @@ const MACROS: Record<string, number> = {
   I2C_BITRATE_ULTRA: 5_000_000,
 };
 
-/** Numeric value of one cell: `0x19`, `400000`, `(8000000)`, `DT_FREQ_M(8)`, `I2C_BITRATE_FAST`. */
+/** Numeric value of one cell: `0x19`, `400000`, `(8000000)`, `DT_FREQ_M(8)`, `DT_SIZE_K(64)`, `I2C_BITRATE_FAST`. */
 export function cellNumber(cell: string): number | undefined {
   const c = cell.trim().replace(/^\((.*)\)$/s, "$1").trim();
   if (/^0x[0-9a-f]+$/i.test(c)) return parseInt(c, 16);
   if (/^\d+$/.test(c)) return Number(c);
   const m = /^DT_FREQ_([MK])\(\s*(\d+)\s*\)$/.exec(c);
   if (m) return Number(m[2]) * (m[1] === "M" ? 1_000_000 : 1_000);
+  const sz = /^DT_SIZE_([MK])\(\s*(\d+)\s*\)$/.exec(c);
+  if (sz) return Number(sz[2]) * (sz[1] === "M" ? 1024 * 1024 : 1024);
   return MACROS[c];
 }
 

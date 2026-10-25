@@ -61,6 +61,8 @@ export const state = {
   /** Clocks tab: unsaved values by "path\0property" (null removes the property). */
   clockDraft: new Map<string, string | null>(),
   clockFocus: "",
+  memRestOpen: false,
+  memTableOpen: false,
   /** Buses tab: also list disabled buses that have no devices. */
   busShowAll: false,
   /** Overview tab: also draw disabled peripherals. */

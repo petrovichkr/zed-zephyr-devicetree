@@ -118,7 +118,13 @@ export class UiServer {
         return send(
           res,
           200,
-          await this.backend.addNode({ parentPath: String(b.parentPath), overlay: String(b.overlay), name: String(b.name), props }),
+          await this.backend.addNode({
+            parentPath: String(b.parentPath),
+            overlay: String(b.overlay),
+            name: String(b.name),
+            label: typeof b.label === "string" && /^[A-Za-z_]\w*$/.test(b.label) ? b.label : undefined,
+            props,
+          }),
         );
       }
       case "POST /api/address": {

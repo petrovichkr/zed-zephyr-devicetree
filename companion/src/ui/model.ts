@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
 import { buildClocks, type UiClocks } from "./clocks.js";
+import { buildMemoryMap, type UiMemory } from "./memmap.js";
 import { buildOverview, type UiOverview } from "./overview.js";
 import { buildPinCatalog, pinctrlInclude, type UiPinCatalog } from "./pinfunctions.js";
 import { buildPinMap, type UiPinMap } from "./pins.js";
@@ -93,6 +94,8 @@ export interface UiModel {
   /** STM32 only. */
   clocks?: UiClocks;
   memory: UiMemoryRegion[];
+  /** Flash partitions and RAM regions, for the memory map. */
+  memoryMap: UiMemory[];
 }
 
 // dts-lsp marks synthetic locations as `<file>%3Floc=...%23virtual` (percent-encoded)
@@ -253,6 +256,7 @@ export function buildModel(
     buses,
     overview: buildOverview(nodes, bindings, pins, buses),
     clocks: buildClocks(nodes),
+    memoryMap: buildMemoryMap(nodes),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };
 }
