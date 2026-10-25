@@ -402,3 +402,6 @@ main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
 .pcell .pline { font-size: 8.5px; color: var(--muted); white-space: nowrap; }
 .pcell.reserved { background: repeating-linear-gradient(135deg, var(--bg2) 0 4px, var(--border) 4px 5px); }
 .pin-panel .line-name { font-size: 12px; font-family: var(--mono); }
+.cls-icon { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+svg.cls-icon { vertical-align: -2px; margin-right: 4px; color: var(--muted); flex: none; }
+.ov-svg path.cls-icon, .bus-svg path.cls-icon { stroke: var(--muted); }

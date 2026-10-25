@@ -2,6 +2,7 @@
 
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import { h } from "./dom.js";
+import { classIcon, nodeClass } from "./icons.js";
 import { ancestors, rerender, select, state } from "./state.js";
 
 interface Row {
@@ -127,6 +128,7 @@ export function renderTree(m: UiModel): HTMLElement {
         },
         node.children.length ? (open ? "▾" : "▸") : "",
       ),
+      node.compatible.length && state.model && nodeClass(state.model, node) ? classIcon(nodeClass(state.model, node)) : null,
       node.labels.map((l) => h("span", { class: "label" }, `${l}:`)),
       h("span", { class: "name" }, node.name),
       node.compatible.length ? h("span", { class: "compat" }, node.compatible.join(", ")) : null,

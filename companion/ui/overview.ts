@@ -7,6 +7,7 @@
 import type { UiModel } from "../src/ui/model.js";
 import type { UiIndicator, UiOverviewGroup, UiPeripheral } from "../src/ui/overview.js";
 import { h } from "./dom.js";
+import { classGlyph } from "./icons.js";
 import { flagsText, flagTags, keyGlyph, ledGlyph } from "./glyphs.js";
 import { basename, humanSize } from "./format.js";
 import { applyEdit, canEdit, rerender, select, showPin, state } from "./state.js";
@@ -147,8 +148,9 @@ function column(m: UiModel, groups: UiOverviewGroup[], side: "left" | "right", o
           s(
             "svg",
             { x: bx + 9, y, width: BLOCK_W - 30, height: hgt, overflow: "hidden" },
-            s("text", { x: 0, y: 15, class: "t1" }, clip(name, 24)),
-            s("text", { x: 0, y: 28, class: "t2" }, clip(`${b.class}${b.devices ? ` · ${b.devices} dev` : ""}`, 26)),
+            classGlyph(b.class, 0, 5),
+            s("text", { x: 19, y: 15, class: "t1" }, clip(name, 22)),
+            s("text", { x: 19, y: 28, class: "t2" }, clip(`${b.class}${b.devices ? ` · ${b.devices} dev` : ""}`, 26)),
           ),
         ),
       );

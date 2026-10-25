@@ -10,6 +10,7 @@ import type { UiCatalogEntry, UiCatalogProp } from "../src/ui/catalog.js";
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { classGlyph, nodeClass } from "./icons.js";
 import { basename, cells, quote } from "./format.js";
 import { applyChange, applyEdit, canEdit, catalog, rerender, select, showPin, state } from "./state.js";
 import { clip, s } from "./svg.js";
@@ -107,8 +108,9 @@ function diagram(m: UiModel, bus: UiBus): SVGSVGElement {
         { class: `dev${off ? " off" : ""}${sev ? ` ${sev}` : ""}${sel(d.path)}`, onclick: () => select(d.path) },
         s("title", {}, `${d.path}${d.disabled ? "\ndisabled" : bus.disabled ? "\nbus disabled" : ""}\nclick to select`),
         s("rect", { x: DEV_X, y: y - BOX / 2, width: DEV_W, height: BOX, rx: 5 }),
-        s("text", { x: DEV_X + 10, y: y - 3, class: "t1" }, clip(title(n, d.path), 40)),
-        s("text", { x: DEV_X + 10, y: y + 12, class: "t2" }, clip(sub, gpio ? 26 : 44)),
+        n ? classGlyph(nodeClass(m, n), DEV_X + 8, y - 7) : null,
+        s("text", { x: DEV_X + 28, y: y - 3, class: "t1" }, clip(title(n, d.path), 38)),
+        s("text", { x: DEV_X + 28, y: y + 12, class: "t2" }, clip(sub, gpio ? 23 : 41)),
       ),
     );
     if (gpio) {
