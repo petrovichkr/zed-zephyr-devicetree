@@ -1324,10 +1324,10 @@ ${indent}`) + "'";
             literalFallback = true;
           };
         }
-        const body = foldFlowLines.foldFlowLines(`${start}${foldedValue}${end}`, indent, foldFlowLines.FOLD_BLOCK, foldOptions);
+        const body2 = foldFlowLines.foldFlowLines(`${start}${foldedValue}${end}`, indent, foldFlowLines.FOLD_BLOCK, foldOptions);
         if (!literalFallback)
           return `>${header}
-${indent}${body}`;
+${indent}${body2}`;
       }
       value = value.replace(/\n+/g, `$&${indent}`);
       return `|${header}
@@ -1739,7 +1739,7 @@ var require_merge = __commonJS({
 var require_addPairToJSMap = __commonJS({
   "node_modules/yaml/dist/nodes/addPairToJSMap.js"(exports2) {
     "use strict";
-    var log2 = require_log();
+    var log3 = require_log();
     var merge = require_merge();
     var stringify = require_stringify();
     var identity = require_identity();
@@ -1788,7 +1788,7 @@ var require_addPairToJSMap = __commonJS({
           let jsonStr = JSON.stringify(strKey);
           if (jsonStr.length > 40)
             jsonStr = jsonStr.substring(0, 36) + '..."';
-          log2.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
+          log3.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
           ctx.mapKeyWarned = true;
         }
         return strKey;
@@ -3332,13 +3332,13 @@ var require_stringifyDocument = __commonJS({
           contentComment = doc.contents.comment;
         }
         const onChompKeep = contentComment ? void 0 : () => chompKeep = true;
-        let body = stringify.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
+        let body2 = stringify.stringify(doc.contents, ctx, () => contentComment = null, onChompKeep);
         if (contentComment)
-          body += stringifyComment.lineComment(body, "", commentString(contentComment));
-        if ((body[0] === "|" || body[0] === ">") && lines[lines.length - 1] === "---") {
-          lines[lines.length - 1] = `--- ${body}`;
+          body2 += stringifyComment.lineComment(body2, "", commentString(contentComment));
+        if ((body2[0] === "|" || body2[0] === ">") && lines[lines.length - 1] === "---") {
+          lines[lines.length - 1] = `--- ${body2}`;
         } else
-          lines.push(body);
+          lines.push(body2);
       } else {
         lines.push(stringify.stringify(doc.contents, ctx));
       }
@@ -5322,13 +5322,13 @@ var require_cst_scalar = __commonJS({
         case ">": {
           const he = source.indexOf("\n");
           const head = source.substring(0, he);
-          const body = source.substring(he + 1) + "\n";
+          const body2 = source.substring(he + 1) + "\n";
           const props = [
             { type: "block-scalar-header", offset, indent, source: head }
           ];
           if (!addEndtoBlockProps(props, end))
             props.push({ type: "newline", offset: -1, indent, source: "\n" });
-          return { type: "block-scalar", offset, indent, props, source: body };
+          return { type: "block-scalar", offset, indent, props, source: body2 };
         }
         case '"':
           return { type: "double-quoted-scalar", offset, indent, source, end };
@@ -5385,13 +5385,13 @@ var require_cst_scalar = __commonJS({
     function setBlockScalarValue(token, source) {
       const he = source.indexOf("\n");
       const head = source.substring(0, he);
-      const body = source.substring(he + 1) + "\n";
+      const body2 = source.substring(he + 1) + "\n";
       if (token.type === "block-scalar") {
         const header = token.props[0];
         if (header.type !== "block-scalar-header")
           throw new Error("Invalid block scalar header");
         header.source = head;
-        token.source = body;
+        token.source = body2;
       } else {
         const { offset } = token;
         const indent = "indent" in token ? token.indent : -1;
@@ -5403,7 +5403,7 @@ var require_cst_scalar = __commonJS({
         for (const key of Object.keys(token))
           if (key !== "type" && key !== "offset")
             delete token[key];
-        Object.assign(token, { type: "block-scalar", indent, props, source: body });
+        Object.assign(token, { type: "block-scalar", indent, props, source: body2 });
       }
     }
     function addEndtoBlockProps(props, end) {
@@ -7172,7 +7172,7 @@ var require_public_api = __commonJS({
     var composer = require_composer();
     var Document = require_Document();
     var errors = require_errors();
-    var log2 = require_log();
+    var log3 = require_log();
     var identity = require_identity();
     var lineCounter = require_line_counter();
     var parser = require_parser();
@@ -7224,7 +7224,7 @@ var require_public_api = __commonJS({
       const doc = parseDocument(src, options);
       if (!doc)
         return null;
-      doc.warnings.forEach((warning) => log2.warn(doc.options.logLevel, warning));
+      doc.warnings.forEach((warning) => log3.warn(doc.options.logLevel, warning));
       if (doc.errors.length > 0) {
         if (doc.options.logLevel !== "silent")
           throw doc.errors[0];
@@ -7315,7 +7315,7 @@ var require_dist = __commonJS({
 });
 
 // src/main.ts
-var import_node_child_process2 = require("node:child_process");
+var import_node_child_process3 = require("node:child_process");
 
 // src/jsonrpc.ts
 function readMessages(stream, onMessage) {
@@ -7329,18 +7329,18 @@ function readMessages(stream, onMessage) {
       const len = Number(/content-length:\s*(\d+)/i.exec(header)?.[1]);
       if (!Number.isFinite(len)) throw new Error(`bad LSP header: ${header}`);
       if (buf.length < sep2 + 4 + len) return;
-      const body = buf.subarray(sep2 + 4, sep2 + 4 + len).toString("utf8");
+      const body2 = buf.subarray(sep2 + 4, sep2 + 4 + len).toString("utf8");
       buf = buf.subarray(sep2 + 4 + len);
-      onMessage(JSON.parse(body));
+      onMessage(JSON.parse(body2));
     }
   });
 }
 function writeMessage(stream, msg) {
-  const body = Buffer.from(JSON.stringify(msg), "utf8");
-  stream.write(`Content-Length: ${body.length}\r
+  const body2 = Buffer.from(JSON.stringify(msg), "utf8");
+  stream.write(`Content-Length: ${body2.length}\r
 \r
 `);
-  stream.write(body);
+  stream.write(body2);
 }
 var Peer = class {
   constructor(out, prefix) {
@@ -7358,7 +7358,7 @@ var Peer = class {
   request(method, params) {
     const id = `${this.prefix}${this.next++}`;
     this.send({ id, method, params });
-    return new Promise((resolve3, reject) => this.pending.set(id, { resolve: resolve3, reject }));
+    return new Promise((resolve4, reject) => this.pending.set(id, { resolve: resolve4, reject }));
   }
   /** Returns true when `msg` answered one of our own requests. */
   settle(msg) {
@@ -7373,20 +7373,529 @@ var Peer = class {
 };
 
 // src/proxy.ts
-var import_node_fs3 = require("node:fs");
-var import_node_path3 = require("node:path");
+var import_node_fs6 = require("node:fs");
+var import_node_path4 = require("node:path");
+var import_node_url5 = require("node:url");
+
+// src/documents.ts
+var import_node_fs = require("node:fs");
 var import_node_url = require("node:url");
+function offsetOf(text, pos) {
+  let offset = 0;
+  for (let line = 0; line < pos.line; line++) {
+    const nl = text.indexOf("\n", offset);
+    if (nl < 0) return text.length;
+    offset = nl + 1;
+  }
+  return Math.min(offset + pos.character, text.length);
+}
+function applyChanges(text, changes) {
+  for (const c of changes) {
+    if (!c.range) text = c.text;
+    else text = text.slice(0, offsetOf(text, c.range.start)) + c.text + text.slice(offsetOf(text, c.range.end));
+  }
+  return text;
+}
+var DocumentStore = class {
+  docs = /* @__PURE__ */ new Map();
+  /** Feed every Zed -> server message through here. */
+  observe(method, params) {
+    const uri = params?.textDocument?.uri;
+    if (!uri?.startsWith("file:")) return false;
+    const file = (0, import_node_url.fileURLToPath)(uri);
+    switch (method) {
+      case "textDocument/didOpen":
+        this.docs.set(file, params.textDocument.text ?? "");
+        return true;
+      case "textDocument/didChange":
+        this.docs.set(file, applyChanges(this.docs.get(file) ?? this.read(file), params.contentChanges ?? []));
+        return true;
+      case "textDocument/didClose":
+        this.docs.delete(file);
+        return true;
+      case "textDocument/didSave":
+        return true;
+    }
+    return false;
+  }
+  read = (file) => this.docs.get(file) ?? (0, import_node_fs.readFileSync)(file, "utf8");
+};
+
+// src/ui/backend.ts
+var import_node_child_process = require("node:child_process");
+var import_node_fs4 = require("node:fs");
+var import_node_path2 = require("node:path");
+var import_node_url4 = require("node:url");
+
+// src/zephyr.ts
+var import_node_fs2 = require("node:fs");
+var import_node_path = require("node:path");
+var import_yaml = __toESM(require_dist(), 1);
+var defaultDiscovery = {
+  buildParents: [".", "build"],
+  exclude: ["twister-out*", "twister-*", "twister"]
+};
+function readModule(name, path) {
+  const file = (0, import_node_path.join)(path, "zephyr", "module.yml");
+  if (!(0, import_node_fs2.existsSync)(file)) return void 0;
+  const doc = (0, import_yaml.parse)((0, import_node_fs2.readFileSync)(file, "utf8")) ?? {};
+  const s = doc.build?.settings ?? {};
+  const abs = (v) => v === void 0 ? void 0 : (0, import_node_path.resolve)(path, v);
+  return {
+    name: doc.name ?? name,
+    path,
+    dtsRoot: abs(s.dts_root),
+    boardRoot: abs(s.board_root),
+    snippetRoot: abs(s.snippet_root)
+  };
+}
+function workspaceModules(ws) {
+  return ws.projects.flatMap((p) => readModule(p.name, p.path) ?? []);
+}
+var globToRegExp = (glob) => new RegExp("^" + glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
+function subdirs(dir) {
+  try {
+    return (0, import_node_fs2.readdirSync)(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith(".")).map((d) => (0, import_node_path.join)(dir, d.name));
+  } catch {
+    return [];
+  }
+}
+var strings = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+function readBuildInfo(file) {
+  try {
+    return (0, import_yaml.parse)((0, import_node_fs2.readFileSync)(file, "utf8"));
+  } catch {
+    return void 0;
+  }
+}
+function contextFromBuildInfo(file, ctxName, buildDir, image) {
+  const info = readBuildInfo(file);
+  const dt = info?.cmake?.devicetree;
+  const files = strings(dt?.files);
+  if (!files.length) return void 0;
+  const dir = (0, import_node_path.join)(file, "..");
+  const compileCommands = (0, import_node_path.join)(dir, "compile_commands.json");
+  return {
+    ctxName,
+    buildDir,
+    image,
+    mtimeMs: (0, import_node_fs2.statSync)(file).mtimeMs,
+    dtsFile: files[0],
+    // build_info lists the board dts first, then every overlay in build order
+    overlays: files.slice(1),
+    includePaths: strings(dt["include-dirs"]),
+    zephyrBindings: strings(dt["bindings-dirs"]),
+    bindingType: "Zephyr",
+    compileCommands: (0, import_node_fs2.existsSync)(compileCommands) ? compileCommands : void 0
+  };
+}
+function discoverBuilds(topdir, opts = defaultDiscovery) {
+  const exclude = opts.exclude.map(globToRegExp);
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const parent of opts.buildParents) {
+    for (const dir of subdirs((0, import_node_path.resolve)(topdir, parent))) {
+      const name = dir.slice(dir.lastIndexOf(import_node_path.sep) + 1);
+      if (seen.has(dir) || exclude.some((re) => re.test(name))) continue;
+      seen.add(dir);
+      const top = (0, import_node_path.join)(dir, "build_info.yml");
+      if (!(0, import_node_fs2.existsSync)(top)) continue;
+      const label = (0, import_node_path.relative)(topdir, dir).split(import_node_path.sep).join("/");
+      const images = readBuildInfo(top)?.cmake?.images;
+      if (Array.isArray(images) && images.length) {
+        for (const img of images) {
+          if (typeof img?.name !== "string") continue;
+          const ctx = contextFromBuildInfo((0, import_node_path.join)(dir, img.name, "build_info.yml"), `${label}/${img.name}`, dir, img.name);
+          if (ctx) out.push(ctx);
+        }
+      } else {
+        const ctx = contextFromBuildInfo(top, label, dir);
+        if (ctx) out.push(ctx);
+      }
+    }
+  }
+  return out.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+function dtsRootIncludes(root) {
+  const dts = (0, import_node_path.join)(root, "dts");
+  const arches = subdirs(dts).filter((d) => !/[\\/](bindings|common|vendor)$/.test(d));
+  return [
+    (0, import_node_path.join)(root, "include"),
+    (0, import_node_path.join)(root, "include", "zephyr"),
+    (0, import_node_path.join)(dts, "common"),
+    (0, import_node_path.join)(dts, "vendor"),
+    ...arches,
+    dts
+  ].filter(import_node_fs2.existsSync);
+}
+function restrictedDefaults(ws, modules) {
+  const roots = [...modules.flatMap((m) => m.dtsRoot ?? []), ...ws.zephyrBase ? [ws.zephyrBase] : []];
+  const unique = [...new Set(roots)];
+  return {
+    cwd: ws.topdir,
+    defaultBindingType: "Zephyr",
+    defaultIncludePaths: unique.flatMap(dtsRootIncludes),
+    defaultZephyrBindings: unique.map((r) => (0, import_node_path.join)(r, "dts", "bindings")).filter(import_node_fs2.existsSync),
+    // SDK and third-party modules must not be touched by rename refactorings
+    defaultLockRenameEdits: externalRoots(ws),
+    autoChangeContext: true,
+    allowAdhocContexts: true
+  };
+}
+function externalRoots(ws) {
+  return ws.projects.filter((p) => (0, import_node_path.resolve)(p.path) !== (0, import_node_path.resolve)(ws.manifestPath)).map((p) => p.path);
+}
+function isUnder(file, roots) {
+  return roots.some((r) => {
+    const rel = (0, import_node_path.relative)(r, file);
+    return rel === "" || !rel.startsWith("..") && !/^[a-zA-Z]:/.test(rel) && !rel.startsWith(import_node_path.sep);
+  });
+}
+
+// src/ui/edits.ts
+var import_node_url2 = require("node:url");
+var sameFile = (url, file) => url === (0, import_node_url2.pathToFileURL)(file).href;
+function statement(property, value) {
+  if (value === null) return `/delete-property/ ${property};`;
+  if (value === true) return `${property};`;
+  return `${property} = ${value};`;
+}
+function planEdit(node, req, src) {
+  const uri = (0, import_node_url2.pathToFileURL)(req.overlay).href;
+  const edit = (e) => ({ changes: { [uri]: [e] } });
+  const own = node.properties.filter((p) => p.name.value === req.property && sameFile(p.url, req.overlay)).at(-1);
+  if (own) {
+    if (req.value === null) {
+      const line = src.lines(req.overlay)[own.range.start.line] ?? "";
+      const wholeLine = line.trim() === src.slice(req.overlay, own.range).trim();
+      return edit({
+        range: wholeLine ? { start: { line: own.range.start.line, character: 0 }, end: { line: own.range.start.line + 1, character: 0 } } : own.range,
+        newText: ""
+      });
+    }
+    return edit({ range: own.range, newText: statement(req.property, req.value) });
+  }
+  const block = node.nodes.filter((d) => sameFile(d.url, req.overlay) && d.scopeClose).at(-1);
+  if (block?.scopeClose) {
+    const close = block.scopeClose;
+    const line = src.lines(req.overlay)[close.line] ?? "";
+    const indent = /^\s*/.exec(line.slice(0, close.character))?.[0] ?? "";
+    const onlyIndentBefore = line.slice(0, close.character).trim() === "";
+    const text = `${indent}	${statement(req.property, req.value)}
+`;
+    return onlyIndentBefore ? edit({ range: { start: { line: close.line, character: 0 }, end: { line: close.line, character: 0 } }, newText: text }) : edit({ range: { start: close, end: close }, newText: `
+${text}${indent}` });
+  }
+  const ref = node.labels[0] ? `&${node.labels[0]}` : `&{${req.nodePath}}`;
+  const lines = src.lines(req.overlay);
+  const last = Math.max(lines.length - 1, 0);
+  const end = { line: last, character: (lines[last] ?? "").length };
+  const lead = lines.length && lines.join("").trim() ? (lines[last] ?? "") === "" ? "\n" : "\n\n" : "";
+  return edit({
+    range: { start: end, end },
+    newText: `${lead}${ref} {
+	${statement(req.property, req.value)}
+};
+`
+  });
+}
+
+// src/ui/model.ts
+var import_node_fs3 = require("node:fs");
+var import_node_url3 = require("node:url");
+var isFileUrl = (url) => typeof url === "string" && url.startsWith("file:") && !/(#|%23)virtual|%3Floc=/i.test(url);
+function toLoc(url, pos) {
+  return { file: (0, import_node_url3.fileURLToPath)(url), line: pos.line, character: pos.character };
+}
+var SourceCache = class {
+  constructor(read = (f) => (0, import_node_fs3.readFileSync)(f, "utf8")) {
+    this.read = read;
+  }
+  files = /* @__PURE__ */ new Map();
+  lines(file) {
+    let lines = this.files.get(file);
+    if (!lines) {
+      try {
+        lines = this.read(file).split(/\r?\n/);
+      } catch {
+        lines = [];
+      }
+      this.files.set(file, lines);
+    }
+    return lines;
+  }
+  slice(file, range) {
+    const lines = this.lines(file);
+    const { start, end } = range;
+    if (start.line === end.line) return (lines[start.line] ?? "").slice(start.character, end.character);
+    return [
+      (lines[start.line] ?? "").slice(start.character),
+      ...lines.slice(start.line + 1, end.line),
+      (lines[end.line] ?? "").slice(0, end.character)
+    ].join("\n");
+  }
+};
+function valueText(propertySource) {
+  const eq = propertySource.indexOf("=");
+  if (eq < 0) return "";
+  return propertySource.slice(eq + 1).replace(/;\s*$/, "").trim();
+}
+var words = (w) => Array.isArray(w) ? w.reduce((acc, x) => acc * 2 ** 32 + x, 0) : 0;
+function bindingProp(p) {
+  return {
+    name: p.name,
+    type: p.type?.[0]?.types?.[0] ?? "UNKNOWN",
+    required: !!p.required,
+    enum: p.allowedValues?.length ? p.allowedValues : void 0,
+    description: p.description
+  };
+}
+function memoryTree(t) {
+  return {
+    name: t.name,
+    path: t.path,
+    start: words(t.start),
+    size: words(t.size),
+    disabled: !!t.disabled,
+    labels: t.labels ?? [],
+    children: (t.children ?? []).map(memoryTree)
+  };
+}
+function buildModel(context, serialized, memory, src = new SourceCache()) {
+  const nodes = {};
+  const bindings = {};
+  for (const [path, n] of Object.entries(serialized)) {
+    const t = n.nodeType;
+    const key = t ? t.bindingsPath ?? t.compatible ?? `generic:${(t.extends ?? []).join(",")}` : void 0;
+    if (t && key && !bindings[key]) {
+      bindings[key] = {
+        file: t.bindingsPath,
+        description: t.description,
+        props: (t.properties ?? []).filter((p) => !p.nameIsRegex).map(bindingProp)
+      };
+    }
+    const props = (n.properties ?? []).filter((p) => isFileUrl(p.url)).map((p) => {
+      const file = (0, import_node_url3.fileURLToPath)(p.url);
+      return {
+        name: p.name.value,
+        value: valueText(src.slice(file, p.range)),
+        origin: toLoc(p.url, p.range.start),
+        overridden: (p.replaces ?? []).filter((r) => isFileUrl(r.url)).map((r) => toLoc(r.url, r.range.start))
+      };
+    });
+    const compatible = props.find((p) => p.name === "compatible")?.value ?? "";
+    nodes[path] = {
+      path,
+      name: n.fullName ?? n.name,
+      labels: n.labels ?? [],
+      disabled: !!n.disabled,
+      compatible: [...compatible.matchAll(/"([^"]*)"/g)].map((m) => m[1]),
+      binding: key,
+      props,
+      children: n.childNodes ?? [],
+      definitions: (n.nodes ?? []).filter((d) => isFileUrl(d.url)).map((d) => toLoc(d.url, d.range.start)),
+      reg: (n.reg ?? []).map((r) => ({ start: words(r.mappedStartAddress ?? r.startAddress), size: words(r.size) })),
+      issues: (n.issues ?? []).length
+    };
+  }
+  for (const node of Object.values(nodes)) {
+    node.children = node.children.map((c) => c.startsWith("/") ? c : `${node.path === "/" ? "" : node.path}/${c}`).filter((c) => nodes[c]);
+  }
+  return {
+    context,
+    root: "/",
+    nodes,
+    bindings,
+    memory: Object.values(memory?.trees ?? {}).map(memoryTree)
+  };
+}
+
+// src/ui/backend.ts
+var log = (...args2) => console.error("[companion]", ...args2);
+var EditorBackend = class {
+  constructor(h) {
+    this.h = h;
+  }
+  /** Serialized nodes of the last model, for edit planning. */
+  serialized;
+  async contexts() {
+    const list = await this.h.server.request("devicetree/getContexts") ?? [];
+    const external = this.h.external();
+    return list.map((c) => ({
+      id: c.id,
+      names: c.ctxNames,
+      active: c.active,
+      overlays: (c.settings?.overlays ?? []).map((o) => (0, import_node_path2.resolve)(c.settings?.cwd ?? "", o)).filter((o) => !isUnder(o, external))
+    }));
+  }
+  async model() {
+    const active = (await this.contexts()).find((c) => c.active);
+    if (!active) return void 0;
+    const [nodes, memory] = await Promise.all([
+      this.h.server.request("devicetree/serializedContext", active.id),
+      this.h.server.request("devicetree/memoryViews", { ctxId: active.id }).catch(() => void 0)
+    ]);
+    if (!nodes) return void 0;
+    this.serialized = { id: active.id, nodes };
+    return buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+  }
+  async setActive(id) {
+    await this.h.server.request("devicetree/setActive", { id });
+  }
+  async open(loc) {
+    if (this.h.canShowDocument()) {
+      const pos = { line: loc.line, character: loc.character };
+      const res = await this.h.zed.request("window/showDocument", { uri: (0, import_node_url4.pathToFileURL)(loc.file).href, takeFocus: true, selection: { start: pos, end: pos } }).catch(() => void 0);
+      if (res?.success) return;
+    }
+    const cli = zedCli();
+    if (!cli) throw new Error("cannot open files in Zed: no showDocument support and no zed CLI on PATH");
+    (0, import_node_child_process.spawn)(cli, [`${loc.file}:${loc.line + 1}:${loc.character + 1}`], { detached: true, stdio: "ignore" }).unref();
+  }
+  async edit(req) {
+    const active = (await this.contexts()).find((c) => c.active);
+    if (!active || !active.overlays.includes((0, import_node_path2.resolve)(req.overlay))) {
+      return { applied: false, error: "target is not a user overlay of the active context" };
+    }
+    if (this.serialized?.id !== active.id || !this.serialized.nodes[req.nodePath]) await this.model();
+    const node = this.serialized?.nodes[req.nodePath];
+    if (!node) return { applied: false, error: `node ${req.nodePath} not found` };
+    const edit = planEdit(node, req, new SourceCache(this.h.docs.read));
+    const res = await this.h.zed.request("workspace/applyEdit", { label: "Devicetree visual editor", edit });
+    if (!res?.applied) log("applyEdit rejected", res?.failureReason ?? "");
+    return { applied: !!res?.applied, error: res?.applied ? void 0 : res?.failureReason ?? "Zed rejected the edit" };
+  }
+};
+function openExternal(url) {
+  const [cmd, args2] = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  (0, import_node_child_process.spawn)(cmd, args2, { detached: true, stdio: "ignore" }).unref();
+}
+function zedCli() {
+  const names = process.platform === "win32" ? ["zed.exe", "zed.cmd"] : ["zed", "zeditor", "zedit"];
+  for (const dir of (process.env.PATH ?? "").split(import_node_path2.delimiter)) {
+    for (const n of names) if (dir && (0, import_node_fs4.existsSync)((0, import_node_path2.join)(dir, n))) return (0, import_node_path2.join)(dir, n);
+  }
+  const mac = "/Applications/Zed.app/Contents/MacOS/cli";
+  return process.platform === "darwin" && (0, import_node_fs4.existsSync)(mac) ? mac : void 0;
+}
+
+// src/ui/server.ts
+var import_node_crypto = require("node:crypto");
+var import_node_http = require("node:http");
+
+// dist/ui.html
+var ui_default = '<!doctype html>\n<!-- SPDX-License-Identifier: Apache-2.0 -->\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <meta name="color-scheme" content="light dark" />\n    <meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; connect-src \'self\'; img-src data:" />\n    <title>Devicetree</title>\n    <style>:root{color-scheme:light dark;--bg: #ffffff;--bg2: #f5f6f8;--fg: #1d2129;--muted: #6b7280;--border: #dfe2e7;--hover: #eef1f5;--sel: #dbe8ff;--sel-fg: #0b3d91;--accent: #2563eb;--label: #7c3aed;--ok: #15803d;--warn: #b45309;--warn-bg: #fff4e0;--danger: #c62828;--danger-bg: #fdecec;--code: #f1f3f6;--seg0: #60a5fa;--seg1: #34d399;--seg2: #fbbf24;--seg3: #f472b6;--seg4: #a78bfa;--seg5: #22d3ee;--mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace}@media (prefers-color-scheme: dark){:root{--bg: #1b1d22;--bg2: #22252b;--fg: #d8dbe0;--muted: #8b919c;--border: #353941;--hover: #2a2e35;--sel: #23395f;--sel-fg: #cfe0ff;--accent: #6ea2ff;--label: #c4a3ff;--ok: #4ade80;--warn: #fbbf24;--warn-bg: #3a2f17;--danger: #f87171;--danger-bg: #3d1f22;--code: #262a31}}*{box-sizing:border-box}html,body{margin:0;height:100%}body{background:var(--bg);color:var(--fg);font:13px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}#app{display:flex;flex-direction:column;height:100vh}.mono,code,input.mono,textarea{font-family:var(--mono);font-size:12px}.muted{color:var(--muted)}button,select,input,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px}button{cursor:pointer;background:var(--bg2)}button:hover:not(:disabled){border-color:var(--accent)}button:disabled,select:disabled,input:disabled{opacity:.5;cursor:default}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.icon{border-color:transparent;background:none;padding:0 4px;color:var(--muted)}button.icon:hover:not(:disabled){color:var(--fg)}button.icon.danger:hover:not(:disabled){color:var(--danger)}button.link{border:0;background:none;padding:0;color:var(--accent);cursor:pointer;text-align:left}button.link:hover{text-decoration:underline}:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--bg2)}header .brand{font-weight:600}header label{display:flex;align-items:center;gap:4px;color:var(--muted)}header select{color:var(--fg);max-width:40vw}.spacer{flex:1}.note{color:var(--warn)}.dot{width:8px;height:8px;border-radius:50%}.dot.up{background:var(--ok)}.dot.down{background:var(--danger)}.tabs{display:flex;gap:2px;padding:0 10px;border-bottom:1px solid var(--border);background:var(--bg2)}.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:5px 10px;color:var(--muted)}.tab.active{color:var(--fg);border-bottom-color:var(--accent)}.message{display:flex;align-items:flex-start;gap:8px;padding:5px 10px;border-bottom:1px solid var(--border);white-space:pre-wrap}.message span{flex:1}.message.error{background:var(--danger-bg);color:var(--danger)}.message.info{background:var(--bg2)}main{flex:1;min-height:0}main.center{display:flex;align-items:center;justify-content:center}main.split{display:grid;grid-template-columns:minmax(260px,38%) 1fr}main.single{display:flex;flex-direction:column}.empty{padding:16px;color:var(--muted)}.tree-pane{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border)}.search{display:flex;align-items:center;gap:6px;padding:6px;border-bottom:1px solid var(--border)}.search input{flex:1;min-width:0}.count{white-space:nowrap;font-size:12px}.tree{flex:1;overflow:auto;padding:2px 0;outline:none}.row{display:flex;align-items:center;gap:4px;white-space:nowrap;padding:1px 6px 1px 4px;cursor:default}.row:hover{background:var(--hover)}.row.selected{background:var(--sel);color:var(--sel-fg)}.tree:focus .row.selected{box-shadow:inset 2px 0 0 var(--accent)}.row.disabled .name,.row.disabled .compat,.row.disabled .label{opacity:.5}.row.context{opacity:.6}.twisty{width:12px;flex:none;color:var(--muted);text-align:center;cursor:pointer}.label{color:var(--label);font-family:var(--mono);font-size:12px}.compat{color:var(--muted);overflow:hidden;text-overflow:ellipsis;font-size:12px}.badge{font-size:11px;padding:0 5px;border-radius:8px;border:1px solid var(--border);white-space:nowrap;font-weight:400}.badge.muted{color:var(--muted)}.badge.ok{color:var(--ok);border-color:currentColor}.badge.warn{color:var(--warn);border-color:currentColor;background:var(--warn-bg)}.details{overflow:auto;padding:8px 14px 24px;min-width:0}.d-head{display:flex;align-items:center;gap:10px}.d-head h2{flex:1;margin:0;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.d-path{color:var(--muted);margin:2px 0 8px;display:flex;gap:6px;word-break:break-all}.kv{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;margin:0 0 8px}.kv dt{color:var(--muted)}.kv dd{margin:0;min-width:0}.desc{white-space:pre-wrap;color:var(--muted);max-height:7.5em;overflow:auto;margin-top:2px}section h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:14px 0 4px;font-weight:600}.defs{margin:0;padding-left:18px}.defs .link{word-break:break-all}table{border-collapse:collapse;width:100%}th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;border-bottom:1px solid var(--border);padding:3px 6px}td{border-bottom:1px solid var(--border);padding:3px 6px;vertical-align:top}.props .pname{white-space:nowrap}.props .pvalue{width:55%;word-break:break-word}.props .pvalue code{white-space:pre-wrap;background:var(--code);padding:0 3px;border-radius:3px}.props .porigin{white-space:nowrap}.props .pactions{white-space:nowrap;text-align:right}.type{margin-left:6px;font-size:11px;color:var(--muted)}.type.required{color:var(--warn)}tr.missing{background:var(--warn-bg)}.warn-text{color:var(--warn)}.overrides summary{cursor:pointer;color:var(--muted);font-size:12px}.overrides ol{margin:2px 0;padding-left:20px}.editor{display:flex;gap:4px;align-items:flex-start}.editor input,.editor textarea{flex:1;min-width:0}.add{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:4px}.add input[type=text]{flex:1;min-width:160px}.add .preview{flex-basis:100%}.add .hint{flex-basis:100%;font-size:12px}.check{display:flex;align-items:center;gap:4px}option.required{font-weight:600}.memory{overflow:auto;flex:1;padding:0 0 24px}.mem tbody tr:not(.bar-row){cursor:pointer}.mem tbody tr:not(.bar-row):hover{background:var(--hover)}.mem tr.root td{font-weight:600;background:var(--bg2)}.mem tr.disabled td{opacity:.55}.mem tr.selected td{background:var(--sel);color:var(--sel-fg)}.mem td{vertical-align:middle}.mem td.num{text-align:right;white-space:nowrap}.mem td.mono{white-space:nowrap}.mem tr.bar-row td{border-bottom:0;padding-top:0;padding-bottom:4px}.bar{position:relative;height:12px;background:var(--code);border:1px solid var(--border);border-radius:3px;overflow:hidden}.seg{position:absolute;top:0;bottom:0;min-width:2px;cursor:pointer;border-right:1px solid var(--bg)}.seg:hover{filter:brightness(1.15)}.seg.disabled{opacity:.35}.seg.selected{outline:2px solid var(--fg);outline-offset:-2px}.seg.c0{background:var(--seg0)}.seg.c1{background:var(--seg1)}.seg.c2{background:var(--seg2)}.seg.c3{background:var(--seg3)}.seg.c4{background:var(--seg4)}.seg.c5{background:var(--seg5)}\n</style>\n  </head>\n  <body>\n    <div id="app"></div>\n    <script>"use strict";(()=>{var q=new URLSearchParams(location.search).get("t")??"";async function b(e,t,o){let i={"X-Token":q};o!==void 0&&(i["Content-Type"]="application/json");let l=await fetch(t,{method:e,headers:i,body:o===void 0?void 0:JSON.stringify(o)});if(!l.ok){let a=await l.text().catch(()=>"");throw new Error(`${e} ${t}: HTTP ${l.status}${a?` - ${a.slice(0,300)}`:""}`)}return l}async function j(){let e=await b("GET","/api/model");return e.status===204?null:await e.json()}var A=async()=>(await b("GET","/api/contexts")).json(),O=async e=>void await b("POST","/api/active",{id:e}),D=async e=>void await b("POST","/api/open",{file:e.file,line:e.line,character:e.character});async function I(e){return(await b("POST","/api/edit",e)).json()}function B(e,t){let o=new EventSource(`/api/events?t=${encodeURIComponent(q)}`);return o.addEventListener("changed",i=>{let l="";try{l=JSON.parse(i.data).reason??""}catch{}e(l)}),o.onopen=()=>t(!0),o.onerror=()=>t(o.readyState===EventSource.OPEN),o}var me=new Set(["value","checked","disabled","selected","open","indeterminate"]);function n(e,t=null,...o){let i=document.createElement(e),l=[];for(let[a,r]of Object.entries(t??{}))if(r!=null)if(me.has(a))l.push([a,r]);else if(a.startsWith("on")&&typeof r=="function")i.addEventListener(a.slice(2),r);else{if(r===!1)continue;a==="class"?i.className=String(r):i.setAttribute(a,r===!0?"":String(r))}M(i,o);for(let[a,r]of l)i[a]=r;return i}function M(e,t){if(!(t==null||t===!1))if(Array.isArray(t))for(let o of t)M(e,o);else e.appendChild(typeof t=="object"?t:document.createTextNode(String(t)))}function z(e,t){let o=document.activeElement,i=o&&e.contains(o)?o.dataset.key:void 0,l=i&&"selectionStart"in o?[o.selectionStart,o.selectionEnd]:null,a=[...e.querySelectorAll("[data-scroll]")].map(r=>[r.dataset.scroll,r.scrollTop]);e.replaceChildren(),M(e,t);for(let[r,c]of a){let p=e.querySelector(`[data-scroll="${r}"]`);p&&(p.scrollTop=c)}if(i){let r=e.querySelector(`[data-key="${CSS.escape(i)}"]`);if(r&&(r.focus({preventScroll:!0}),l&&l[0]!=null&&l[1]!=null&&typeof r.setSelectionRange=="function"))try{r.setSelectionRange(l[0],l[1])}catch{}}}var w=e=>e.split(/[\\\\/]/).pop()??e,F=(e,t=3)=>{let o=e.split(/[\\\\/]/).filter(Boolean);return(o.length>t?"\\u2026/":"")+o.slice(-t).join("/")},G=e=>`${w(e.file)}:${e.line+1}`,W=e=>`${e.file}:${e.line+1}:${e.character+1}`,x=e=>"0x"+e.toString(16).padStart(8,"0");function S(e){let t=["B","KiB","MiB","GiB","TiB"],o=0,i=e;for(;i>=1024&&o<t.length-1;)i/=1024,o++;return`${o===0?i:Number(i.toFixed(2))} ${t[o]}`}function L(e){return/^".*"$/s.test(e)?e:`"${e.replace(/\\\\/g,"\\\\\\\\").replace(/"/g,\'\\\\"\')}"`}var V=e=>e.trim().startsWith("<")?e.trim():`<${e.trim()}>`;function J(e,t){return e==="STRING"||e==="STRINGLIST"?L(String(t)):e==="U32"||e==="U64"?`<${t}>`:String(t)}var T="\\0custom",h=()=>({name:"",custom:"",text:"",checked:!0}),s={loaded:!1,model:null,contexts:[],parents:new Map,selected:"/",expanded:new Set(["/"]),tab:"tree",search:"",overlay:"",overlayContext:"",editing:null,add:h(),openOverrides:new Set,message:null,busy:!1,connected:!0,scrollToSelected:!1},X=()=>{},Z=e=>void(X=e),d=()=>X(),Y;function f(e,t){s.message={kind:e,text:t},window.clearTimeout(Y),e==="info"&&(Y=window.setTimeout(()=>(s.message=null,d()),3e3)),d()}var E=e=>e instanceof Error?e.message:String(e),m=()=>!!s.model&&s.model.context.overlays.includes(s.overlay)&&!s.busy;function pe(e){if(s.model=e,s.parents.clear(),!e)return;for(let o of Object.values(e.nodes))for(let i of o.children)s.parents.set(i,o.path);if(!e.nodes[s.selected]){let o=s.selected;for(;o!=="/"&&!e.nodes[o];)o=o.slice(0,o.lastIndexOf("/"))||"/";Q(e.nodes[o]?o:e.root)}let t=e.context.overlays;(s.overlayContext!==e.context.id||!t.includes(s.overlay))&&(s.overlay=t[t.length-1]??"",s.overlayContext=e.context.id),s.editing&&!e.nodes[s.selected]?.props.some(o=>o.name===s.editing.prop)&&(s.editing=null)}var U=!1,H=!1;async function y(){if(U){H=!0;return}U=!0;try{do{H=!1;let[e,t]=await Promise.all([j(),A().catch(()=>null)]);pe(e),s.contexts=t??(e?[e.context]:[]),s.loaded=!0}while(H)}catch(e){f("error",E(e))}finally{U=!1,d()}}function P(e){let t=[];for(let o=s.parents.get(e);o!==void 0;o=s.parents.get(o))t.push(o);return t}function Q(e){e!==s.selected&&(s.editing=null,s.add=h(),s.openOverrides.clear()),s.selected=e}function g(e,t={}){if(Q(e),t.tab&&(s.tab=t.tab),t.reveal){for(let o of P(e))s.expanded.add(o);s.scrollToSelected=!0}d()}async function _(e){try{await D(e)}catch(t){f("error",E(t))}}async function k(e,t,o){if(!m())return!1;s.busy=!0,d();try{let i=await I({nodePath:e,overlay:s.overlay,property:t,value:o});return i.applied?(f("info",o===null?`Removed ${t}`:`Wrote ${t}`),!0):(f("error",`Edit of ${t} not applied${i.error?`: ${i.error}`:""}`),!1)}catch(i){return f("error",E(i)),!1}finally{s.busy=!1,d(),y()}}var $=(e,t=G(e))=>n("button",{class:"link mono",title:`Open ${W(e)}`,onclick:()=>void _(e)},t),ee=e=>(e??"").trim().split(/\\n/)[0]??"";function C(e){if(!e)return;let t=[`${e.type}${e.required?", required":""}`];return e.enum&&t.push(`one of: ${e.enum.join(", ")}`),e.description&&t.push(e.description.trim()),t.join(`\n`)}function ne(e){return e?n("span",{class:`type${e.required?" required":""}`,title:C(e)},e.type.toLowerCase(),e.required?"*":""):null}function fe(e){let t=e.disabled;return n("button",{class:t?"primary":"",disabled:!m(),title:m()?`Write status = ${t?\'"okay"\':\'"disabled"\'} to the target overlay`:"Editing is disabled",onclick:()=>void k(e.path,"status",t?\'"okay"\':\'"disabled"\')},t?"Enable (okay)":"Disable")}function ge(e,t){let o=s.editing,i=o.text.includes(`\n`),l=async()=>{await k(e.path,t.name,o.text.trim()===""?!0:o.text.trim())&&(s.editing=null,d())},a=()=>{s.editing=null,d()},r={class:"mono","data-key":`edit:${t.name}`,value:o.text,spellcheck:"false",oninput:c=>void(o.text=c.target.value),onkeydown:c=>{c.key==="Escape"?a():c.key==="Enter"&&(!i||c.ctrlKey||c.metaKey)&&(c.preventDefault(),l())}};return n("div",{class:"editor"},i?n("textarea",{...r,rows:Math.min(8,o.text.split(`\n`).length)}):n("input",{...r,type:"text"}),n("button",{class:"primary",disabled:!m(),onclick:()=>void l()},"Apply"),n("button",{onclick:a},"Cancel"))}function ve(e,t,o){let i=s.editing?.prop===t.name,l=t.overridden.length,a=l?n("details",{class:"overrides",open:s.openOverrides.has(t.name),ontoggle:r=>{r.target.open?s.openOverrides.add(t.name):s.openOverrides.delete(t.name)}},n("summary",null,`overrides ${l}`),n("ol",null,t.overridden.map(r=>n("li",null,$(r))))):null;return[n("tr",null,n("td",{class:"pname",title:C(o)},n("span",{class:"mono"},t.name),ne(o)),n("td",{class:"pvalue"},i?ge(e,t):t.value===""?n("span",{class:"muted"},"(true)"):n("code",null,t.value)),n("td",{class:"porigin"},$(t.origin),a),n("td",{class:"pactions"},i||t.value===""?null:n("button",{class:"icon",title:"Edit value",disabled:!m(),onclick:()=>{s.editing={prop:t.name,text:t.value},d(),requestAnimationFrame(()=>document.querySelector(`[data-key="edit:${CSS.escape(t.name)}"]`)?.focus())}},"\\u270E"),n("button",{class:"icon danger",title:"Remove property",disabled:!m(),onclick:()=>{confirm(`Remove ${t.name} from ${e.path}?\nThe change is written to ${w(s.overlay)}.`)&&k(e.path,t.name,null)}},"\\u2715")))]}function he(e){return n("tr",{class:"missing"},n("td",{class:"pname",title:C(e)},n("span",{class:"mono"},e.name),ne(e)),n("td",{class:"pvalue"},n("span",{class:"warn-text"},"required, not set")),n("td",null),n("td",{class:"pactions"},n("button",{disabled:!m(),onclick:()=>{s.add={...h(),name:e.name},d(),requestAnimationFrame(()=>document.querySelector(\'[data-key="add-value"]\')?.focus())}},"Set")))}function ye(e){let t=s.add,o=t.text.trim();return e?e.type==="EMPTY"?t.checked?!0:null:e.enum?o||void 0:e.type==="STRING"?L(t.text):e.type==="U32"||e.type==="U64"?o?V(o):void 0:o||void 0:o===""?!0:o}function be(e,t){let o=s.add,i=r=>{o.text=r.target.value,d()},l=r=>{r.key==="Enter"&&(r.preventDefault(),t())},a={"data-key":"add-value",value:o.text,oninput:i,onkeydown:l,spellcheck:"false"};return e?.type==="EMPTY"?n("label",{class:"check"},n("input",{type:"checkbox","data-key":"add-value",checked:o.checked,onchange:r=>{o.checked=r.target.checked,d()}}),o.checked?"set (name;)":"unset (remove)"):e?.enum?n("select",{"data-key":"add-value",value:o.text,onchange:i},n("option",{value:""},"\\u2014 value \\u2014"),e.enum.map(r=>{let c=J(e.type,r);return n("option",{value:c},c)})):e?.type==="STRING"?n("input",{...a,type:"text",class:"mono",placeholder:"text (quoted automatically)"}):e?.type==="U32"||e?.type==="U64"?n("input",{...a,type:"text",inputmode:"numeric",class:"mono",placeholder:"number, e.g. 42 or 0x2a"}):n("input",{...a,type:"text",class:"mono",placeholder:e?`raw DTS value (${e.type.toLowerCase()})`:"raw DTS value, empty = boolean"})}function xe(e,t,o){let i=s.add,l=(t?.props??[]).filter(u=>!o.has(u.name)).sort((u,N)=>Number(N.required)-Number(u.required)||u.name.localeCompare(N.name)),a=i.name&&i.name!==T?l.find(u=>u.name===i.name):void 0,r=i.name===T?i.custom.trim():a?.name??"",c=i.name?ye(a):void 0,p=m()&&!!r&&c!==void 0,v=async()=>{p&&await k(e.path,r,c)&&(s.add=h(),d())};return n("div",{class:"add"},n("select",{"data-key":"add-name",value:i.name,disabled:!m(),onchange:u=>{s.add={...h(),name:u.target.value,custom:i.custom},d()}},n("option",{value:""},"Add property\\u2026"),l.map(u=>n("option",{value:u.name,class:u.required?"required":"",title:ee(u.description)},`${u.required?"* ":""}${u.name} (${u.type.toLowerCase()})`)),n("option",{value:T},"Other (free-form name)\\u2026")),i.name===T?n("input",{type:"text",class:"mono",placeholder:"property name","data-key":"add-custom",value:i.custom,spellcheck:"false",oninput:u=>{i.custom=u.target.value,d()}}):null,i.name?be(a,()=>void v()):null,i.name?n("button",{class:"primary",disabled:!p,onclick:()=>void v()},"Add"):null,i.name&&c!==void 0&&r?n("code",{class:"preview muted",title:"Written to the overlay"},c===!0?`${r};`:c===null?`/delete-property/ ${r};`:`${r} = ${c};`):null,a?.description?n("div",{class:"hint muted"},ee(a.description)):null)}function te(e,...t){return n("section",null,n("h3",null,e),...t)}function oe(e){let t=e.nodes[s.selected];if(!t)return n("div",{class:"empty"},"Select a node");let o=t.binding?e.bindings[t.binding]:void 0,i=new Map((o?.props??[]).map(c=>[c.name,c])),l=new Set(t.props.map(c=>c.name)),a=(o?.props??[]).filter(c=>c.required&&!l.has(c.name)),r=s.parents.get(t.path);return n("div",{class:"details","data-scroll":"details"},n("div",{class:"d-head"},n("h2",null,t.labels.map(c=>n("span",{class:"label"},`${c}: `)),t.name,t.disabled?n("span",{class:"badge muted"},"disabled"):n("span",{class:"badge ok"},"okay"),t.issues>0?n("span",{class:"badge warn"},`${t.issues} issue${t.issues===1?"":"s"}`):null),t.path===e.root?null:fe(t)),n("div",{class:"d-path mono"},r?n("button",{class:"link",title:"Select parent",onclick:()=>g(r,{reveal:!0})},"\\u2191"):null,t.path),n("dl",{class:"kv"},t.labels.length?[n("dt",null,"Labels"),n("dd",{class:"mono"},t.labels.join(", "))]:null,t.compatible.length?[n("dt",null,"Compatible"),n("dd",{class:"mono"},t.compatible.join(", "))]:null,o?.file||o?.description?[n("dt",null,"Binding"),n("dd",null,o.file?$({file:o.file,line:0,character:0},w(o.file)):null,o.description?n("div",{class:"desc"},o.description.trim()):null)]:null),t.definitions.length?te(`Definitions (${t.definitions.length})`,n("ul",{class:"defs"},t.definitions.map(c=>n("li",null,$(c,c.file+`:${c.line+1}`))))):null,te(`Properties (${t.props.length})`,n("table",{class:"props"},n("thead",null,n("tr",null,n("th",null,"Name"),n("th",null,"Value"),n("th",null,"Origin"),n("th",null))),n("tbody",null,a.map(he),t.props.map(c=>ve(t,c,i.get(c.name))))),xe(t,o,l)))}function se(e){if(e.size>0)return[e.start,e.start+e.size];let t=1/0,o=-1/0;for(let i of e.children){let l=se(i);l&&(t=Math.min(t,l[0]),o=Math.max(o,l[1]))}return t<o?[t,o]:null}var ie=e=>e.size>0?`${x(e.start)} \\u2013 ${x(e.start+e.size-1)}`:"",re=e=>g(e.path,{reveal:!0,tab:"tree"});function Te(e){let t=se(e),o=e.children.filter(l=>l.size>0);if(!t||!o.length)return null;let i=t[1]-t[0];return n("div",{class:"bar",title:`${x(t[0])} \\u2013 ${x(t[1]-1)}`},o.map((l,a)=>n("div",{class:`seg c${a%6}${l.disabled?" disabled":""}${l.path===s.selected?" selected":""}`,style:`left:${(l.start-t[0])/i*100}%;width:${l.size/i*100}%`,title:`${l.name}\n${ie(l)}\n${S(l.size)}`,onclick:()=>re(l)})))}function le(e,t,o){o.push(n("tr",{class:`${t===0?"root":""}${e.disabled?" disabled":""}${e.path===s.selected?" selected":""}`,title:e.path,onclick:()=>re(e)},n("td",{style:`padding-left:${t*16+6}px`},e.name),n("td",{class:"mono"},ie(e)),n("td",{class:"num"},e.size>0?S(e.size):""),n("td",{class:"mono"},e.labels.join(", ")),n("td",null,e.disabled?n("span",{class:"badge muted"},"disabled"):null)));let i=e.children.length>1||t===0?Te(e):null;i&&o.push(n("tr",{class:"bar-row"},n("td",{colspan:5,style:`padding-left:${t*16+6}px`},i)));for(let l of e.children)le(l,t+1,o)}function ae(e){if(!e.memory.length)return n("div",{class:"empty"},"No memory regions in this context");let t=[];for(let o of e.memory)le(o,0,t);return n("div",{class:"memory","data-scroll":"memory"},n("table",{class:"mem"},n("thead",null,n("tr",null,n("th",null,"Region"),n("th",null,"Range"),n("th",null,"Size"),n("th",null,"Labels"),n("th",null))),n("tbody",null,t)))}function ce(e,t){return e.path.toLowerCase().includes(t)||e.name.toLowerCase().includes(t)||e.labels.some(o=>o.toLowerCase().includes(t))||e.compatible.some(o=>o.toLowerCase().includes(t))}function Ee(e){let t=s.search.trim().toLowerCase();if(!t)return null;let o=new Set,i=new Set,l=0;for(let a of Object.values(e.nodes))if(ce(a,t)){l++,o.add(a.path);for(let r of P(a.path))o.add(r),i.add(r)}return{visible:o,forced:i,hits:l}}function ke(e,t){let o=[],i=(l,a)=>{let r=e.nodes[l];if(!r||t&&!t.visible.has(l))return;let c=t?t.forced.has(l)||s.expanded.has(l):s.expanded.has(l);if(o.push({node:r,depth:a,open:c}),c)for(let p of r.children)i(p,a+1)};return i(e.root,0),o}function R(e){s.expanded.has(e)?s.expanded.delete(e):s.expanded.add(e),d()}function we(e,t,o){let i=t.findIndex(r=>r.node.path===s.selected),l=t[i],a=r=>{r&&(s.scrollToSelected=!0,g(r.node.path))};switch(e.key){case"ArrowDown":a(t[i+1]??t[0]);break;case"ArrowUp":a(t[Math.max(0,i-1)]);break;case"ArrowRight":if(!l||!l.node.children.length)return;l.open?a(t[i+1]):R(l.node.path);break;case"ArrowLeft":if(!l)return;if(l.open&&l.node.path!==o.root&&s.expanded.has(l.node.path))R(l.node.path);else{let r=s.parents.get(l.node.path);r&&a(t.find(c=>c.node.path===r))}break;case"Home":a(t[0]);break;case"End":a(t[t.length-1]);break;default:return}e.preventDefault()}function de(e){let t=Ee(e),o=ke(e,t),i=s.search.trim().toLowerCase(),l=o.map(({node:r,depth:c,open:p})=>n("div",{class:`row${r.path===s.selected?" selected":""}${r.disabled?" disabled":""}${t&&!ce(r,i)?" context":""}`,"data-path":r.path,style:`padding-left:${c*14+4}px`,title:r.path,onclick:()=>g(r.path)},n("span",{class:"twisty",onclick:v=>{v.stopPropagation(),r.children.length&&R(r.path)}},r.children.length?p?"\\u25BE":"\\u25B8":""),r.labels.map(v=>n("span",{class:"label"},`${v}:`)),n("span",{class:"name"},r.name),r.compatible.length?n("span",{class:"compat"},r.compatible.join(", ")):null,r.disabled?n("span",{class:"badge muted"},"disabled"):null,r.issues>0?n("span",{class:"badge warn",title:`${r.issues} issue(s)`},String(r.issues)):null)),a=n("div",{class:"tree",tabindex:0,role:"tree","data-key":"tree","data-scroll":"tree",onkeydown:r=>we(r,o,e)},l.length?l:n("div",{class:"empty"},"No matching nodes"));return s.scrollToSelected&&(s.scrollToSelected=!1,requestAnimationFrame(()=>a.querySelector(".row.selected")?.scrollIntoView({block:"nearest"}))),n("div",{class:"tree-pane"},n("div",{class:"search"},n("input",{type:"search",placeholder:"Search path, name, label, compatible","data-key":"search",value:s.search,oninput:r=>{s.search=r.target.value,d()},onkeydown:r=>{r.key==="Escape"?(s.search="",d()):r.key==="ArrowDown"&&(r.preventDefault(),a.focus())}}),n("span",{class:"muted count"},t?`${t.hits} match${t.hits===1?"":"es"}`:`${Object.keys(e.nodes).length} nodes`)),a)}var $e=document.getElementById("app");function Me(){let e=s.model,t=s.contexts.length?s.contexts:e?[e.context]:[],o=e?.context.overlays??[];return n("header",null,n("span",{class:"brand"},"Devicetree"),n("label",null,"Context ",n("select",{"data-key":"context",disabled:!t.length,value:t.find(i=>i.active)?.id??e?.context.id??"",onchange:async i=>{try{await O(i.target.value)}catch(l){f("error",E(l))}y()}},t.length?t.map(i=>n("option",{value:i.id},i.names.join(", ")||i.id)):n("option",{value:""},"\\u2014"))),e?o.length?n("label",null,"Write to ",n("select",{"data-key":"overlay",value:s.overlay,title:s.overlay,onchange:i=>{s.overlay=i.target.value,d()}},o.map(i=>n("option",{value:i,title:i},F(i))))):n("span",{class:"note"},"This build has no user overlay: editing is disabled."):null,n("span",{class:"spacer"}),s.busy?n("span",{class:"muted"},"Applying\\u2026"):null,n("span",{class:`dot ${s.connected?"up":"down"}`,title:s.connected?"Connected to companion":"Disconnected from companion, reconnecting\\u2026"}))}function Se(){let e=(t,o)=>n("button",{class:`tab${s.tab===t?" active":""}`,role:"tab","aria-selected":String(s.tab===t),onclick:()=>{s.tab=t,t==="tree"&&(s.scrollToSelected=!0),d()}},o);return n("nav",{class:"tabs",role:"tablist"},e("tree","Tree"),e("memory",`Memory${s.model?` (${s.model.memory.length})`:""}`))}function Le(){let e=s.message;return e?n("div",{class:`message ${e.kind}`,role:e.kind==="error"?"alert":"status"},n("span",null,e.text),n("button",{class:"icon",title:"Dismiss",onclick:()=>(s.message=null,d())},"\\u2715")):null}function Ue(){let e=s.model;return s.loaded?e?s.tab==="memory"?n("main",{class:"single"},ae(e)):n("main",{class:"split"},de(e),oe(e)):n("main",{class:"center muted"},"Waiting for devicetree context\\u2026 Open a .dts or .overlay file in Zed."):n("main",{class:"center muted"},"Loading\\u2026")}Z(()=>{z($e,[Me(),Se(),Le(),Ue()]),document.title=s.model?`Devicetree \\u2013 ${s.model.context.names.join(", ")}`:"Devicetree"});var ue=!1;B(()=>void y(),e=>{e&&ue&&y(),ue=!e,s.connected!==e&&(s.connected=e,d())});d();y();})();\n</script>\n  </body>\n</html>\n';
+
+// src/ui/server.ts
+var MAX_BODY = 1 << 20;
+var UiServer = class {
+  constructor(backend) {
+    this.backend = backend;
+  }
+  token = (0, import_node_crypto.randomBytes)(16).toString("hex");
+  clients = /* @__PURE__ */ new Set();
+  port = 0;
+  get url() {
+    return `http://127.0.0.1:${this.port}/?t=${this.token}`;
+  }
+  async start() {
+    if (this.port) return this.url;
+    const server2 = (0, import_node_http.createServer)((req, res) => {
+      this.handle(req, res).catch((e) => send(res, 500, { error: String(e?.message ?? e) }));
+    });
+    await new Promise((resolve4) => server2.listen(0, "127.0.0.1", resolve4));
+    this.port = server2.address().port;
+    server2.unref();
+    return this.url;
+  }
+  /** Tell every open page to refetch. */
+  changed(reason) {
+    const frame = `event: changed
+data: ${JSON.stringify({ reason })}
+
+`;
+    for (const c of this.clients) c.write(frame);
+  }
+  authorized(req, url) {
+    if (req.headers.host !== `127.0.0.1:${this.port}`) return false;
+    const given = String(req.headers["x-token"] ?? url.searchParams.get("t") ?? "");
+    const a = Buffer.from(given);
+    const b = Buffer.from(this.token);
+    return a.length === b.length && (0, import_node_crypto.timingSafeEqual)(a, b);
+  }
+  async handle(req, res) {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    if (!this.authorized(req, url)) return send(res, 403, { error: "forbidden" });
+    const route = `${req.method} ${url.pathname}`;
+    switch (route) {
+      case "GET /":
+        res.writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"
+        });
+        return void res.end(ui_default);
+      case "GET /api/events":
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
+        res.write(": connected\n\n");
+        this.clients.add(res);
+        req.on("close", () => this.clients.delete(res));
+        return;
+      case "GET /api/contexts":
+        return send(res, 200, await this.backend.contexts());
+      case "GET /api/model": {
+        const model = await this.backend.model();
+        return model ? send(res, 200, model) : void res.writeHead(204).end();
+      }
+      case "POST /api/active":
+        await this.backend.setActive(String((await body(req)).id));
+        return send(res, 200, {});
+      case "POST /api/open": {
+        const b = await body(req);
+        await this.backend.open({ file: String(b.file), line: Number(b.line) || 0, character: Number(b.character) || 0 });
+        return send(res, 200, {});
+      }
+      case "POST /api/edit": {
+        const b = await body(req);
+        const value = b.value === true || b.value === null ? b.value : String(b.value);
+        return send(
+          res,
+          200,
+          await this.backend.edit({ nodePath: String(b.nodePath), overlay: String(b.overlay), property: String(b.property), value })
+        );
+      }
+      default:
+        return send(res, 404, { error: "not found" });
+    }
+  }
+};
+function send(res, status, data) {
+  if (res.headersSent) return void res.end();
+  res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
+  res.end(JSON.stringify(data));
+}
+async function body(req) {
+  if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) throw new Error("expected JSON");
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY) throw new Error("body too large");
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}
 
 // src/west.ts
-var import_node_child_process = require("node:child_process");
-var import_node_fs = require("node:fs");
-var import_node_path = require("node:path");
+var import_node_child_process2 = require("node:child_process");
+var import_node_fs5 = require("node:fs");
+var import_node_path3 = require("node:path");
 var import_node_util = require("node:util");
-var import_yaml = __toESM(require_dist(), 1);
+var import_yaml2 = __toESM(require_dist(), 1);
 function findTopdir(start) {
-  for (let dir = (0, import_node_path.resolve)(start); ; dir = (0, import_node_path.dirname)(dir)) {
-    if ((0, import_node_fs.existsSync)((0, import_node_path.join)(dir, ".west", "config"))) return dir;
-    if ((0, import_node_path.dirname)(dir) === dir) return void 0;
+  for (let dir = (0, import_node_path3.resolve)(start); ; dir = (0, import_node_path3.dirname)(dir)) {
+    if ((0, import_node_fs5.existsSync)((0, import_node_path3.join)(dir, ".west", "config"))) return dir;
+    if ((0, import_node_path3.dirname)(dir) === dir) return void 0;
   }
 }
 function parseIni(text) {
@@ -7408,15 +7917,15 @@ function parseIni(text) {
 async function loadWorkspace(start, env = process.env) {
   const topdir = findTopdir(start);
   if (!topdir) return void 0;
-  const config = parseIni((0, import_node_fs.readFileSync)((0, import_node_path.join)(topdir, ".west", "config"), "utf8"));
-  const manifestPath = (0, import_node_path.resolve)(topdir, config.manifest?.path ?? ".");
+  const config = parseIni((0, import_node_fs5.readFileSync)((0, import_node_path3.join)(topdir, ".west", "config"), "utf8"));
+  const manifestPath = (0, import_node_path3.resolve)(topdir, config.manifest?.path ?? ".");
   const manifestFile = config.manifest?.file ?? "west.yml";
   const base = config.zephyr?.base ?? env.ZEPHYR_BASE;
   const ws = {
     topdir,
     manifestPath,
     manifestFile,
-    zephyrBase: base ? (0, import_node_path.resolve)(topdir, base) : void 0,
+    zephyrBase: base ? (0, import_node_path3.resolve)(topdir, base) : void 0,
     projects: []
   };
   ws.projects = await westList(topdir, env) ?? readManifestProjects(ws);
@@ -7428,11 +7937,11 @@ async function loadWorkspace(start, env = process.env) {
 }
 function westCandidates(topdir, env = process.env) {
   const exe = process.platform === "win32" ? ["Scripts", "west.exe"] : ["bin", "west"];
-  const venvs = [env.VIRTUAL_ENV, (0, import_node_path.join)(topdir, ".venv"), (0, import_node_path.join)(topdir, "venv")].filter(Boolean);
-  return [...venvs.map((v) => (0, import_node_path.join)(v, ...exe)).filter(import_node_fs.existsSync), "west"];
+  const venvs = [env.VIRTUAL_ENV, (0, import_node_path3.join)(topdir, ".venv"), (0, import_node_path3.join)(topdir, "venv")].filter(Boolean);
+  return [...venvs.map((v) => (0, import_node_path3.join)(v, ...exe)).filter(import_node_fs5.existsSync), "west"];
 }
 async function westList(topdir, env) {
-  const run = (0, import_node_util.promisify)(import_node_child_process.execFile);
+  const run = (0, import_node_util.promisify)(import_node_child_process2.execFile);
   for (const west of westCandidates(topdir, env)) {
     try {
       const { stdout } = await run(west, ["list", "-f", "{name}	{abspath}"], {
@@ -7455,8 +7964,8 @@ function readManifestProjects(ws) {
   const found = /* @__PURE__ */ new Map();
   found.set("manifest", { name: "manifest", path: ws.manifestPath });
   const visit = (file, prefix, allow, block, depth = 0) => {
-    if (depth > 8 || !(0, import_node_fs.existsSync)(file)) return;
-    const manifest = ((0, import_yaml.parse)((0, import_node_fs.readFileSync)(file, "utf8")) ?? {}).manifest ?? {};
+    if (depth > 8 || !(0, import_node_fs5.existsSync)(file)) return;
+    const manifest = ((0, import_yaml2.parse)((0, import_node_fs5.readFileSync)(file, "utf8")) ?? {}).manifest ?? {};
     const projects = manifest.projects ?? [];
     const imports = [];
     for (const p of projects) {
@@ -7464,7 +7973,7 @@ function readManifestProjects(ws) {
       if (block?.includes(p.name)) continue;
       if (found.has(p.name)) continue;
       const own = typeof p.import === "object" && !Array.isArray(p.import) ? p.import["path-prefix"] ?? "" : "";
-      const path = (0, import_node_path.resolve)(ws.topdir, prefix, own, p.path ?? p.name);
+      const path = (0, import_node_path3.resolve)(ws.topdir, prefix, own, p.path ?? p.name);
       found.set(p.name, { name: p.name, path });
       if (p.import) imports.push(() => importFrom(path, p.import, prefix, depth));
     }
@@ -7476,144 +7985,20 @@ function readManifestProjects(ws) {
     if (spec === false) return;
     const specs = typeof spec === "object" && !Array.isArray(spec) ? spec : void 0;
     const files = spec === true ? ["west.yml"] : typeof spec === "string" ? [spec] : Array.isArray(spec) ? spec : [specs?.file ?? "west.yml"];
-    const nextPrefix = (0, import_node_path.join)(prefix, specs?.["path-prefix"] ?? "");
+    const nextPrefix = (0, import_node_path3.join)(prefix, specs?.["path-prefix"] ?? "");
     for (const f of files) {
-      const target = (0, import_node_path.isAbsolute)(f) ? f : (0, import_node_path.join)(projectPath, f);
+      const target = (0, import_node_path3.isAbsolute)(f) ? f : (0, import_node_path3.join)(projectPath, f);
       visit(target, nextPrefix, asList(specs?.["name-allowlist"]), asList(specs?.["name-blocklist"]), depth + 1);
     }
   };
-  visit((0, import_node_path.join)(ws.manifestPath, ws.manifestFile), "");
+  visit((0, import_node_path3.join)(ws.manifestPath, ws.manifestFile), "");
   return [...found.values()];
-}
-
-// src/zephyr.ts
-var import_node_fs2 = require("node:fs");
-var import_node_path2 = require("node:path");
-var import_yaml2 = __toESM(require_dist(), 1);
-var defaultDiscovery = {
-  buildParents: [".", "build"],
-  exclude: ["twister-out*", "twister-*", "twister"]
-};
-function readModule(name, path) {
-  const file = (0, import_node_path2.join)(path, "zephyr", "module.yml");
-  if (!(0, import_node_fs2.existsSync)(file)) return void 0;
-  const doc = (0, import_yaml2.parse)((0, import_node_fs2.readFileSync)(file, "utf8")) ?? {};
-  const s = doc.build?.settings ?? {};
-  const abs = (v) => v === void 0 ? void 0 : (0, import_node_path2.resolve)(path, v);
-  return {
-    name: doc.name ?? name,
-    path,
-    dtsRoot: abs(s.dts_root),
-    boardRoot: abs(s.board_root),
-    snippetRoot: abs(s.snippet_root)
-  };
-}
-function workspaceModules(ws) {
-  return ws.projects.flatMap((p) => readModule(p.name, p.path) ?? []);
-}
-var globToRegExp = (glob) => new RegExp("^" + glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
-function subdirs(dir) {
-  try {
-    return (0, import_node_fs2.readdirSync)(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith(".")).map((d) => (0, import_node_path2.join)(dir, d.name));
-  } catch {
-    return [];
-  }
-}
-var strings = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
-function readBuildInfo(file) {
-  try {
-    return (0, import_yaml2.parse)((0, import_node_fs2.readFileSync)(file, "utf8"));
-  } catch {
-    return void 0;
-  }
-}
-function contextFromBuildInfo(file, ctxName, buildDir, image) {
-  const info = readBuildInfo(file);
-  const dt = info?.cmake?.devicetree;
-  const files = strings(dt?.files);
-  if (!files.length) return void 0;
-  const dir = (0, import_node_path2.join)(file, "..");
-  const compileCommands = (0, import_node_path2.join)(dir, "compile_commands.json");
-  return {
-    ctxName,
-    buildDir,
-    image,
-    mtimeMs: (0, import_node_fs2.statSync)(file).mtimeMs,
-    dtsFile: files[0],
-    // build_info lists the board dts first, then every overlay in build order
-    overlays: files.slice(1),
-    includePaths: strings(dt["include-dirs"]),
-    zephyrBindings: strings(dt["bindings-dirs"]),
-    bindingType: "Zephyr",
-    compileCommands: (0, import_node_fs2.existsSync)(compileCommands) ? compileCommands : void 0
-  };
-}
-function discoverBuilds(topdir, opts = defaultDiscovery) {
-  const exclude = opts.exclude.map(globToRegExp);
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const parent of opts.buildParents) {
-    for (const dir of subdirs((0, import_node_path2.resolve)(topdir, parent))) {
-      const name = dir.slice(dir.lastIndexOf(import_node_path2.sep) + 1);
-      if (seen.has(dir) || exclude.some((re) => re.test(name))) continue;
-      seen.add(dir);
-      const top = (0, import_node_path2.join)(dir, "build_info.yml");
-      if (!(0, import_node_fs2.existsSync)(top)) continue;
-      const label = (0, import_node_path2.relative)(topdir, dir).split(import_node_path2.sep).join("/");
-      const images = readBuildInfo(top)?.cmake?.images;
-      if (Array.isArray(images) && images.length) {
-        for (const img of images) {
-          if (typeof img?.name !== "string") continue;
-          const ctx = contextFromBuildInfo((0, import_node_path2.join)(dir, img.name, "build_info.yml"), `${label}/${img.name}`, dir, img.name);
-          if (ctx) out.push(ctx);
-        }
-      } else {
-        const ctx = contextFromBuildInfo(top, label, dir);
-        if (ctx) out.push(ctx);
-      }
-    }
-  }
-  return out.sort((a, b) => b.mtimeMs - a.mtimeMs);
-}
-function dtsRootIncludes(root) {
-  const dts = (0, import_node_path2.join)(root, "dts");
-  const arches = subdirs(dts).filter((d) => !/[\\/](bindings|common|vendor)$/.test(d));
-  return [
-    (0, import_node_path2.join)(root, "include"),
-    (0, import_node_path2.join)(root, "include", "zephyr"),
-    (0, import_node_path2.join)(dts, "common"),
-    (0, import_node_path2.join)(dts, "vendor"),
-    ...arches,
-    dts
-  ].filter(import_node_fs2.existsSync);
-}
-function restrictedDefaults(ws, modules) {
-  const roots = [...modules.flatMap((m) => m.dtsRoot ?? []), ...ws.zephyrBase ? [ws.zephyrBase] : []];
-  const unique = [...new Set(roots)];
-  return {
-    cwd: ws.topdir,
-    defaultBindingType: "Zephyr",
-    defaultIncludePaths: unique.flatMap(dtsRootIncludes),
-    defaultZephyrBindings: unique.map((r) => (0, import_node_path2.join)(r, "dts", "bindings")).filter(import_node_fs2.existsSync),
-    // SDK and third-party modules must not be touched by rename refactorings
-    defaultLockRenameEdits: externalRoots(ws),
-    autoChangeContext: true,
-    allowAdhocContexts: true
-  };
-}
-function externalRoots(ws) {
-  return ws.projects.filter((p) => (0, import_node_path2.resolve)(p.path) !== (0, import_node_path2.resolve)(ws.manifestPath)).map((p) => p.path);
-}
-function isUnder(file, roots) {
-  return roots.some((r) => {
-    const rel = (0, import_node_path2.relative)(r, file);
-    return rel === "" || !rel.startsWith("..") && !/^[a-zA-Z]:/.test(rel) && !rel.startsWith(import_node_path2.sep);
-  });
 }
 
 // src/proxy.ts
 var SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
-var log = (...args2) => console.error("[companion]", ...args2);
+var OPEN_UI_COMMAND = "zephyr-devicetree.openVisualEditor";
+var log2 = (...args2) => console.error("[companion]", ...args2);
 function filesOf(tree, out = /* @__PURE__ */ new Set()) {
   if (Array.isArray(tree)) tree.forEach((t) => filesOf(t, out));
   else if (tree && typeof tree === "object") {
@@ -7628,6 +8013,15 @@ var Proxy2 = class {
   constructor(zed, server2) {
     this.zed = zed;
     this.server = server2;
+    this.ui = new UiServer(
+      new EditorBackend({
+        zed,
+        server: server2,
+        docs: this.docs,
+        external: () => this.external,
+        canShowDocument: () => this.canShowDocument
+      })
+    );
   }
   root;
   ws;
@@ -7644,16 +8038,29 @@ var Proxy2 = class {
   watchers = [];
   timer;
   syncing = Promise.resolve();
+  docs = new DocumentStore();
+  canShowDocument = false;
+  ui;
+  uiTimer;
+  /** Debounced "model may have changed" for open editor pages. */
+  uiChanged(reason, delay = 500) {
+    clearTimeout(this.uiTimer);
+    this.uiTimer = setTimeout(() => this.ui.changed(reason), delay);
+  }
   fromZed(msg) {
     if (this.zed.settle(msg)) return;
     const uri = msg.params?.textDocument?.uri;
     if (typeof uri === "string" && uri.startsWith("file:") && msg.method !== "textDocument/didClose") {
-      this.currentFile = (0, import_node_url.fileURLToPath)(uri);
+      this.currentFile = (0, import_node_url5.fileURLToPath)(uri);
+    }
+    if (this.docs.observe(msg.method, msg.params) && msg.method !== "textDocument/didOpen") {
+      this.uiChanged(msg.method.slice("textDocument/".length));
     }
     switch (msg.method) {
       case "initialize":
         this.initializeId = msg.id;
         this.root = rootOf(msg.params);
+        this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
         break;
       case "initialized":
         this.server.send(msg);
@@ -7661,13 +8068,17 @@ var Proxy2 = class {
         return;
       case "textDocument/codeAction":
         if (msg.id !== void 0 && msg.params?.textDocument?.uri?.startsWith("file:")) {
-          this.codeActions.set(msg.id, (0, import_node_url.fileURLToPath)(msg.params.textDocument.uri));
+          this.codeActions.set(msg.id, (0, import_node_url5.fileURLToPath)(msg.params.textDocument.uri));
         }
         break;
       case "workspace/executeCommand":
         if (msg.params?.command === SET_ACTIVE_COMMAND) {
           const [id] = msg.params.arguments ?? [];
           this.server.request("devicetree/setActive", { id }).then(() => this.refreshContexts()).then(() => this.zed.send({ id: msg.id, result: null })).catch((e) => this.zed.send({ id: msg.id, error: { code: -32603, message: String(e) } }));
+          return;
+        }
+        if (msg.params?.command === OPEN_UI_COMMAND) {
+          this.openUi().then(() => this.zed.send({ id: msg.id, result: null })).catch((e) => this.zed.send({ id: msg.id, error: { code: -32603, message: String(e) } }));
           return;
         }
         break;
@@ -7687,13 +8098,16 @@ var Proxy2 = class {
     if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/contextDeleted") {
       void this.refreshContexts();
     }
+    if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/activeContextStableNotification") {
+      this.uiChanged(msg.method.slice("devicetree/".length));
+    }
     if (msg.method?.startsWith("devicetree/") && msg.id === void 0) return;
     if (!msg.method && msg.id !== void 0) {
       if (msg.id === this.initializeId) {
         const caps = msg.result?.capabilities;
         if (caps) {
           const cmds = caps.executeCommandProvider?.commands ?? [];
-          caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND] };
+          caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND, OPEN_UI_COMMAND] };
         }
       } else if (this.codeActions.has(msg.id)) {
         const file = this.codeActions.get(msg.id);
@@ -7707,7 +8121,7 @@ var Proxy2 = class {
   filterDiagnostics(msg) {
     const uri = msg.params?.uri ?? "";
     if (!uri.startsWith("file:") || !this.external.length) return msg;
-    if (!isUnder((0, import_node_url.fileURLToPath)(uri), this.external)) return msg;
+    if (!isUnder((0, import_node_url5.fileURLToPath)(uri), this.external)) return msg;
     const diagnostics = (msg.params.diagnostics ?? []).filter((d) => (d.severity ?? 1) <= 2);
     return { ...msg, params: { ...msg.params, diagnostics } };
   }
@@ -7719,14 +8133,28 @@ var Proxy2 = class {
       kind: "source",
       command: { title: "Switch devicetree context", command: SET_ACTIVE_COMMAND, arguments: [c.id] }
     }));
-    if (!actions.length || msg.error) return msg;
+    actions.unshift({
+      title: "Devicetree: open visual editor",
+      kind: "source",
+      command: { title: "Open devicetree visual editor", command: OPEN_UI_COMMAND, arguments: [] }
+    });
+    if (msg.error) return msg;
     return { ...msg, result: [...msg.result ?? [], ...actions] };
+  }
+  async openUi() {
+    const url = await this.ui.start();
+    log2(`visual editor: ${url}`);
+    if (this.canShowDocument) {
+      const res = await this.zed.request("window/showDocument", { uri: url, external: true }).catch(() => void 0);
+      if (res?.success) return;
+    }
+    openExternal(url);
   }
   async refreshContexts() {
     try {
       this.contexts = await this.server.request("devicetree/getContexts") ?? [];
     } catch (e) {
-      log("getContexts failed", e);
+      log2("getContexts failed", e);
     }
   }
   /**
@@ -7751,7 +8179,7 @@ var Proxy2 = class {
   scheduleSync(delay = 1e3) {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      this.syncing = this.syncing.then(() => this.sync()).catch((e) => log("sync failed", e));
+      this.syncing = this.syncing.then(() => this.sync()).catch((e) => log2("sync failed", e));
     }, delay);
   }
   /** Push workspace defaults and build contexts to dts-lsp when anything changed. */
@@ -7764,7 +8192,7 @@ var Proxy2 = class {
     if (this.fingerprint === "" && this.ws) {
       this.external = externalRoots(this.ws);
       await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(this.ws, workspaceModules(this.ws)));
-      log(`workspace ${topdir}: zephyr ${this.ws.zephyrBase ?? "not found"}, ${this.ws.projects.length} projects`);
+      log2(`workspace ${topdir}: zephyr ${this.ws.zephyrBase ?? "not found"}, ${this.ws.projects.length} projects`);
     }
     if (fingerprint !== this.fingerprint) {
       this.fingerprint = fingerprint;
@@ -7778,21 +8206,22 @@ var Proxy2 = class {
           const item = await this.server.request("devicetree/requestContext", ctx);
           this.requested.set(b.ctxName, item.id);
         } catch (e) {
-          log(`context ${b.ctxName}:`, e);
+          log2(`context ${b.ctxName}:`, e);
         }
       }
-      log(`contexts: ${builds.map((b) => b.ctxName).join(", ") || "none"}`);
+      log2(`contexts: ${builds.map((b) => b.ctxName).join(", ") || "none"}`);
       await this.refreshContexts();
       await this.preferBuildContext();
+      this.uiChanged("contexts", 0);
     }
     this.watchBuilds(topdir, builds);
   }
   watchBuilds(topdir, builds) {
     this.watchers.forEach((w) => w.close());
-    const dirs = /* @__PURE__ */ new Set([...defaultDiscovery.buildParents.map((p) => (0, import_node_path3.join)(topdir, p)), ...builds.map((b) => b.buildDir)]);
+    const dirs = /* @__PURE__ */ new Set([...defaultDiscovery.buildParents.map((p) => (0, import_node_path4.join)(topdir, p)), ...builds.map((b) => b.buildDir)]);
     this.watchers = [...dirs].flatMap((d) => {
       try {
-        return [(0, import_node_fs3.watch)(d, () => this.scheduleSync())];
+        return [(0, import_node_fs6.watch)(d, () => this.scheduleSync())];
       } catch {
         return [];
       }
@@ -7801,7 +8230,7 @@ var Proxy2 = class {
 };
 function rootOf(params) {
   const uri = params?.workspaceFolders?.[0]?.uri ?? params?.rootUri;
-  if (uri) return (0, import_node_url.fileURLToPath)(uri);
+  if (uri) return (0, import_node_url5.fileURLToPath)(uri);
   return params?.rootPath ?? void 0;
 }
 
@@ -7815,7 +8244,7 @@ function parseArgs(argv) {
 }
 var { server, args } = parseArgs(process.argv.slice(2));
 var isScript = /\.[cm]?js$/.test(server);
-var child = (0, import_node_child_process2.spawn)(isScript ? process.execPath : server, isScript ? [server, ...args] : args, {
+var child = (0, import_node_child_process3.spawn)(isScript ? process.execPath : server, isScript ? [server, ...args] : args, {
   stdio: ["pipe", "pipe", "inherit"]
 });
 child.on("exit", (code) => process.exit(code ?? 1));

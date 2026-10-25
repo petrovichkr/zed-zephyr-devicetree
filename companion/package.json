@@ -9,8 +9,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/companion.cjs --legal-comments=inline",
+    "build": "npm run build:ui && esbuild src/main.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/companion.cjs --legal-comments=inline --loader:.html=text",
+    "build:ui": "node scripts/build-ui.mjs",
     "typecheck": "tsc --noEmit",
+    "typecheck:ui": "tsc -p tsconfig.ui.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

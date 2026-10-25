@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Local HTTP server of the visual editor (SPEC D15, 4.3). Listens on 127.0.0.1
+// only, on a random port; every request must carry the per-session token and a
+// loopback Host header (DNS rebinding). Model changes are pushed over SSE.
+
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+// The page is a single self-contained file built by scripts/build-ui.mjs.
+import html from "../../dist/ui.html";
+import type { EditRequest } from "./edits.js";
+import type { Loc, UiContext, UiModel } from "./model.js";
+
+export interface UiBackend {
+  contexts(): Promise<UiContext[]>;
+  model(): Promise<UiModel | undefined>;
+  setActive(id: string): Promise<void>;
+  open(loc: Loc): Promise<void>;
+  edit(req: EditRequest): Promise<{ applied: boolean; error?: string }>;
+}
+
+const MAX_BODY = 1 << 20;
+
+export class UiServer {
+  private readonly token = randomBytes(16).toString("hex");
+  private readonly clients = new Set<ServerResponse>();
+  private port = 0;
+
+  constructor(private readonly backend: UiBackend) {}
+
+  get url(): string {
+    return `http://127.0.0.1:${this.port}/?t=${this.token}`;
+  }
+
+  async start(): Promise<string> {
+    if (this.port) return this.url;
+    const server = createServer((req, res) => {
+      this.handle(req, res).catch((e) => send(res, 500, { error: String(e?.message ?? e) }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    this.port = (server.address() as AddressInfo).port;
+    server.unref();
+    return this.url;
+  }
+
+  /** Tell every open page to refetch. */
+  changed(reason: string): void {
+    const frame = `event: changed\ndata: ${JSON.stringify({ reason })}\n\n`;
+    for (const c of this.clients) c.write(frame);
+  }
+
+  private authorized(req: IncomingMessage, url: URL): boolean {
+    if (req.headers.host !== `127.0.0.1:${this.port}`) return false;
+    const given = String(req.headers["x-token"] ?? url.searchParams.get("t") ?? "");
+    const a = Buffer.from(given);
+    const b = Buffer.from(this.token);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+
+  private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    if (!this.authorized(req, url)) return send(res, 403, { error: "forbidden" });
+
+    const route = `${req.method} ${url.pathname}`;
+    switch (route) {
+      case "GET /":
+        res.writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+        });
+        return void res.end(html);
+      case "GET /api/events":
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
+        res.write(": connected\n\n");
+        this.clients.add(res);
+        req.on("close", () => this.clients.delete(res));
+        return;
+      case "GET /api/contexts":
+        return send(res, 200, await this.backend.contexts());
+      case "GET /api/model": {
+        const model = await this.backend.model();
+        return model ? send(res, 200, model) : void res.writeHead(204).end();
+      }
+      case "POST /api/active":
+        await this.backend.setActive(String((await body(req)).id));
+        return send(res, 200, {});
+      case "POST /api/open": {
+        const b = await body(req);
+        await this.backend.open({ file: String(b.file), line: Number(b.line) || 0, character: Number(b.character) || 0 });
+        return send(res, 200, {});
+      }
+      case "POST /api/edit": {
+        const b = await body(req);
+        const value = b.value === true || b.value === null ? b.value : String(b.value);
+        return send(
+          res,
+          200,
+          await this.backend.edit({ nodePath: String(b.nodePath), overlay: String(b.overlay), property: String(b.property), value }),
+        );
+      }
+      default:
+        return send(res, 404, { error: "not found" });
+    }
+  }
+}
+
+function send(res: ServerResponse, status: number, data: unknown): void {
+  if (res.headersSent) return void res.end();
+  res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
+  res.end(JSON.stringify(data));
+}
+
+async function body(req: IncomingMessage): Promise<any> {
+  if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) throw new Error("expected JSON");
+  let size = 0;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY) throw new Error("body too large");
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}

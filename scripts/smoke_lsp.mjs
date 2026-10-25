@@ -9,6 +9,8 @@
 //   ctx.json: optional array of dts-lsp contexts (to try build-derived contexts)
 // env COMPANION=<companion.js>: run the server behind the companion and send
 //   empty user settings, as a fresh Zed install would.
+// env UI_CHECK=...: see below; exercises the visual editor end to end.
+// env PROBE_OUT=<dir>: also dump serializedContext / memoryViews of the active context.
 
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -39,6 +41,8 @@ const child = spawn("node", [...cmd, "--stdio"], { stdio: ["pipe", "pipe", "inhe
 let buf = Buffer.alloc(0);
 let nextId = 1;
 const pending = new Map();
+const shown = [];
+const edits = [];
 
 function send(msg) {
   const body = Buffer.from(JSON.stringify({ jsonrpc: "2.0", ...msg }));
@@ -68,7 +72,15 @@ function onMessage(msg) {
   if (msg.id !== undefined && msg.method) {
     // server -> client request
     let result = null;
-    if (msg.method === "workspace/configuration") {
+    if (msg.method === "window/showDocument") {
+      // pretend to be Zed: never launch a browser or editor from the smoke test
+      shown.push(msg.params.uri);
+      result = { success: true };
+    } else if (msg.method === "workspace/applyEdit") {
+      // print instead of applying, so the workspace is never modified
+      edits.push(msg.params.edit);
+      result = { applied: true };
+    } else if (msg.method === "workspace/configuration") {
       result = msg.params.items.map((it) => (it.section === "devicetree" ? settings : { devicetree: settings }));
     }
     send({ id: msg.id, result });
@@ -92,7 +104,7 @@ await request("initialize", {
   processId: process.pid,
   rootUri: pathToFileURL(root).href,
   workspaceFolders: [{ uri: pathToFileURL(root).href, name: "ws" }],
-  capabilities: { workspace: { configuration: true, didChangeConfiguration: { dynamicRegistration: true } } },
+  capabilities: { window: { showDocument: { support: true } }, workspace: { configuration: true, didChangeConfiguration: { dynamicRegistration: true } } },
 });
 send({ method: "initialized", params: {} });
 send({ method: "workspace/didChangeConfiguration", params: { settings: { devicetree: settings } } });
@@ -103,6 +115,42 @@ const contexts = await request("devicetree/getContexts", null);
 console.log(`after ${Date.now() - t0} ms, contexts:`, contexts.map((c) => `${c.active ? "*" : " "} ${c.ctxNames.join(",")}`).join("\n  "));
 const actions = await request("textDocument/codeAction", { textDocument: { uri }, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, context: { diagnostics: [] } });
 console.log("codeActions:", (actions ?? []).map((a) => a.title));
+if (process.env.PROBE_OUT) {
+  // dump the custom-API payloads the visual editor consumes
+  const { writeFileSync } = await import("node:fs");
+  const active = contexts.find((c) => c.active);
+  for (const [name, method, params] of [
+    ["serialized", "devicetree/serializedContext", active.id],
+    ["memory", "devicetree/memoryViews", { ctxId: active.id }],
+  ]) {
+    const t = Date.now();
+    const res = await request(method, params);
+    const text = JSON.stringify(res);
+    writeFileSync(`${process.env.PROBE_OUT}/${name}.json`, text);
+    console.log(`${method}: ${text.length} bytes in ${Date.now() - t} ms`);
+  }
+}
+if (process.env.UI_CHECK) {
+  // env UI_CHECK="<nodePath>|<property>|<value>": open the visual editor, fetch
+  // its model over HTTP and request one edit (printed, not applied)
+  const [nodePath, property, value] = process.env.UI_CHECK.split("|");
+  await request("workspace/executeCommand", { command: "zephyr-devicetree.openVisualEditor", arguments: [] });
+  const url = new URL(shown.find((u) => u.startsWith("http")));
+  const api = (path, body) =>
+    fetch(new URL(path, url), {
+      method: body ? "POST" : "GET",
+      headers: { "x-token": url.searchParams.get("t"), ...(body ? { "content-type": "application/json" } : {}) },
+      body: body && JSON.stringify(body),
+    });
+  const page = await fetch(url);
+  console.log(`ui page: ${page.status}, ${(await page.text()).length} bytes`);
+  const t = Date.now();
+  const model = await (await api("/api/model")).json();
+  console.log(`ui model: ${Object.keys(model.nodes).length} nodes, overlays ${JSON.stringify(model.context.overlays.map((o) => o.split("/").pop()))} in ${Date.now() - t} ms`);
+  const overlay = model.context.overlays.at(-1);
+  const res = await (await api("/api/edit", { nodePath, overlay, property, value })).json();
+  console.log("ui edit:", JSON.stringify(res), JSON.stringify(edits));
+}
 const symbols = await request("textDocument/documentSymbol", { textDocument: { uri } });
 console.log(`documentSymbol: ${Array.isArray(symbols) ? symbols.length : JSON.stringify(symbols)}`);
 child.kill();

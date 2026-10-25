@@ -4,13 +4,17 @@
 // - after `initialized`, workspace defaults and build contexts are pushed to
 //   dts-lsp through its integration API (setDefaultSettings / requestContext);
 // - code actions get "switch context" entries, executed here (SPEC D5);
-// - info/hint diagnostics in SDK and third-party modules are dropped.
+// - info/hint diagnostics in SDK and third-party modules are dropped;
+// - "open visual editor" starts the local web UI (SPEC D15, 4.3).
 
 import { watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "./jsonrpc.js";
 import { Peer } from "./jsonrpc.js";
+import { DocumentStore } from "./documents.js";
+import { EditorBackend, openExternal } from "./ui/backend.js";
+import { UiServer } from "./ui/server.js";
 import { loadWorkspace, type WestWorkspace } from "./west.js";
 import {
   defaultDiscovery,
@@ -23,6 +27,7 @@ import {
 } from "./zephyr.js";
 
 export const SET_ACTIVE_COMMAND = "zephyr-devicetree.setActiveContext";
+export const OPEN_UI_COMMAND = "zephyr-devicetree.openVisualEditor";
 
 interface ContextListItem {
   id: string;
@@ -60,11 +65,31 @@ export class Proxy {
   private watchers: FSWatcher[] = [];
   private timer?: NodeJS.Timeout;
   private syncing = Promise.resolve();
+  private readonly docs = new DocumentStore();
+  private canShowDocument = false;
+  private readonly ui: UiServer;
+  private uiTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly zed: Peer,
     private readonly server: Peer,
-  ) {}
+  ) {
+    this.ui = new UiServer(
+      new EditorBackend({
+        zed,
+        server,
+        docs: this.docs,
+        external: () => this.external,
+        canShowDocument: () => this.canShowDocument,
+      }),
+    );
+  }
+
+  /** Debounced "model may have changed" for open editor pages. */
+  private uiChanged(reason: string, delay = 500): void {
+    clearTimeout(this.uiTimer);
+    this.uiTimer = setTimeout(() => this.ui.changed(reason), delay);
+  }
 
   fromZed(msg: Message): void {
     if (this.zed.settle(msg)) return;
@@ -72,10 +97,14 @@ export class Proxy {
     if (typeof uri === "string" && uri.startsWith("file:") && msg.method !== "textDocument/didClose") {
       this.currentFile = fileURLToPath(uri);
     }
+    if (this.docs.observe(msg.method, msg.params) && msg.method !== "textDocument/didOpen") {
+      this.uiChanged(msg.method!.slice("textDocument/".length));
+    }
     switch (msg.method) {
       case "initialize":
         this.initializeId = msg.id;
         this.root = rootOf(msg.params);
+        this.canShowDocument = !!msg.params?.capabilities?.window?.showDocument?.support;
         break;
       case "initialized":
         this.server.send(msg);
@@ -92,6 +121,12 @@ export class Proxy {
           this.server
             .request("devicetree/setActive", { id })
             .then(() => this.refreshContexts())
+            .then(() => this.zed.send({ id: msg.id, result: null }))
+            .catch((e) => this.zed.send({ id: msg.id, error: { code: -32603, message: String(e) } }));
+          return;
+        }
+        if (msg.params?.command === OPEN_UI_COMMAND) {
+          this.openUi()
             .then(() => this.zed.send({ id: msg.id, result: null }))
             .catch((e) => this.zed.send({ id: msg.id, error: { code: -32603, message: String(e) } }));
           return;
@@ -114,6 +149,9 @@ export class Proxy {
     if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/contextDeleted") {
       void this.refreshContexts();
     }
+    if (msg.method === "devicetree/newActiveContext" || msg.method === "devicetree/activeContextStableNotification") {
+      this.uiChanged(msg.method.slice("devicetree/".length));
+    }
     // Zed does not know dts-lsp's own notifications and logs each one with its
     // full payload, so they stop here.
     if (msg.method?.startsWith("devicetree/") && msg.id === undefined) return;
@@ -122,7 +160,7 @@ export class Proxy {
         const caps = msg.result?.capabilities;
         if (caps) {
           const cmds: string[] = caps.executeCommandProvider?.commands ?? [];
-          caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND] };
+          caps.executeCommandProvider = { ...caps.executeCommandProvider, commands: [...cmds, SET_ACTIVE_COMMAND, OPEN_UI_COMMAND] };
         }
       } else if (this.codeActions.has(msg.id)) {
         const file = this.codeActions.get(msg.id)!;
@@ -153,8 +191,23 @@ export class Proxy {
         kind: "source",
         command: { title: "Switch devicetree context", command: SET_ACTIVE_COMMAND, arguments: [c.id] },
       }));
-    if (!actions.length || msg.error) return msg;
+    actions.unshift({
+      title: "Devicetree: open visual editor",
+      kind: "source",
+      command: { title: "Open devicetree visual editor", command: OPEN_UI_COMMAND, arguments: [] },
+    });
+    if (msg.error) return msg;
     return { ...msg, result: [...(msg.result ?? []), ...actions] };
+  }
+
+  private async openUi(): Promise<void> {
+    const url = await this.ui.start();
+    log(`visual editor: ${url}`);
+    if (this.canShowDocument) {
+      const res = await this.zed.request("window/showDocument", { uri: url, external: true }).catch(() => undefined);
+      if (res?.success) return;
+    }
+    openExternal(url);
   }
 
   private async refreshContexts(): Promise<void> {
@@ -224,6 +277,7 @@ export class Proxy {
       log(`contexts: ${builds.map((b) => b.ctxName).join(", ") || "none"}`);
       await this.refreshContexts();
       await this.preferBuildContext();
+      this.uiChanged("contexts", 0);
     }
     this.watchBuilds(topdir, builds);
   }
