@@ -2,7 +2,7 @@
 
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import { h } from "./dom.js";
-import { classIcon, nodeClass } from "./icons.js";
+import { aliasesOf, classIcon, nodeClass } from "./icons.js";
 import { ancestors, rerender, select, state } from "./state.js";
 
 interface Row {
@@ -132,6 +132,7 @@ export function renderTree(m: UiModel): HTMLElement {
       node.labels.map((l) => h("span", { class: "label" }, `${l}:`)),
       h("span", { class: "name" }, node.name),
       node.compatible.length ? h("span", { class: "compat" }, node.compatible.join(", ")) : null,
+      state.model ? aliasesOf(state.model, node.path).map((a) => h("span", { class: "badge alias", title: a.startsWith("chosen") ? "/chosen" : "/aliases" }, a)) : null,
       node.disabled ? h("span", { class: "badge muted" }, "disabled") : null,
       node.issues > 0 ? h("span", { class: "badge warn", title: `${node.issues} issue(s)` }, String(node.issues)) : null,
     ),

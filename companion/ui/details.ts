@@ -4,6 +4,7 @@ import type { Loc, UiBinding, UiBindingProp, UiModel, UiNode, UiProp } from "../
 import { h } from "./dom.js";
 import { basename, cells, enumValue, locText, locTitle, quote } from "./format.js";
 import { editableFlags } from "./flagedit.js";
+import { aliasesOf } from "./icons.js";
 import { busSection } from "./buses.js";
 import { usageText } from "./pins.js";
 import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, showPin, state } from "./state.js";
@@ -345,6 +346,7 @@ export function renderDetails(m: UiModel): HTMLElement {
         node.name,
         node.disabled ? h("span", { class: "badge muted" }, "disabled") : h("span", { class: "badge ok" }, "okay"),
         node.issues > 0 ? h("span", { class: "badge warn" }, `${node.issues} issue${node.issues === 1 ? "" : "s"}`) : null,
+        aliasesOf(m, node.path).map((a) => h("span", { class: "badge alias" }, a)),
       ),
       node.path === m.root ? null : statusButton(node),
     ),

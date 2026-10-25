@@ -72,3 +72,22 @@ export function classIcon(cls: string): SVGElement {
   const i = iconOf(cls);
   return s("svg", { class: "cls-icon", width: 14, height: 14, viewBox: "0 0 14 14", "aria-hidden": "true" }, s("title", {}, `${i.title} (${cls})`), s("path", { d: i.d }));
 }
+
+/** aliases and chosen entries pointing at each node (`led0`, `chosen: zephyr,console`); computed once per model. */
+let names: { model: UiModel; map: Map<string, string[]> } | null = null;
+export function aliasesOf(m: UiModel, path: string): string[] {
+  if (names?.model !== m) {
+    const byLabel = new Map<string, string>();
+    for (const n of Object.values(m.nodes)) for (const l of n.labels) byLabel.set(l, n.path);
+    const map = new Map<string, string[]>();
+    for (const [holder, prefix] of [["/aliases", ""], ["/chosen", "chosen: "]] as const) {
+      for (const p of m.nodes[holder]?.props ?? []) {
+        const v = p.value.trim().replace(/^<|>$/g, "").trim();
+        const target = v.startsWith("&") ? byLabel.get(v.slice(1).replace(/^\{(.+)\}$/, "$1")) ?? v.slice(2, -1) : v.replace(/^"|"$/g, "");
+        if (m.nodes[target]) map.set(target, [...(map.get(target) ?? []), `${prefix}${p.name}`]);
+      }
+    }
+    names = { model: m, map };
+  }
+  return names.map.get(path) ?? [];
+}
