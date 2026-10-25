@@ -26,6 +26,7 @@ export interface UiBackend {
   editMany(overlay: string, edits: { nodePath: string; property: string; value: string | true | null }[]): Promise<{ applied: boolean; error?: string }>;
   movePin(req: PinMoveRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }>;
   assignPin(req: PinAssignRequest): Promise<{ applied: boolean; error?: string; conflict?: string[] }>;
+  createOverlay(): Promise<{ applied: boolean; error?: string; file?: string }>;
 }
 
 const MAX_BODY = 1 << 20;
@@ -167,6 +168,9 @@ export class UiServer {
           await this.backend.assignPin({ function: String(b.function), pin: String(b.pin), owner: String(b.owner), overlay: String(b.overlay), force: b.force === true }),
         );
       }
+      case "POST /api/create-overlay":
+        await body(req);
+        return send(res, 200, await this.backend.createOverlay());
       default:
         return send(res, 404, { error: "not found" });
     }

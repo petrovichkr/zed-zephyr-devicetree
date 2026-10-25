@@ -14,7 +14,7 @@ import { renderMemory } from "./memory.js";
 import { renderOverview } from "./overview.js";
 import { renderPins } from "./pins.js";
 import { renderTree } from "./tree.js";
-import { errorText, notify, refresh, rerender, setRenderer, state } from "./state.js";
+import { createOverlay, errorText, notify, refresh, rerender, setRenderer, state } from "./state.js";
 
 const root = document.getElementById("app")!;
 
@@ -68,7 +68,22 @@ function header(): HTMLElement {
               overlays.map((o) => h("option", { value: o, title: o }, tail(o))),
             ),
           )
-        : h("span", { class: "note" }, "This build has no user overlay: editing is disabled.")
+        : m.context.newOverlay
+          ? h(
+              "span",
+              { class: "note" },
+              "This build has no user overlay. ",
+              h("button", { class: "small", disabled: state.busy, title: `Create ${m.context.newOverlay}`, onclick: () => void createOverlay() }, `Create ${tail(m.context.newOverlay, 2)}`),
+            )
+          : h("span", { class: "note" }, "This build has no user overlay: editing is disabled.")
+      : null,
+    m?.context.pending?.length
+      ? h(
+          "span",
+          { class: "note", title: m.context.pending.join("\n") },
+          `${m.context.pending.map((p) => tail(p, 2)).join(", ")} is not in the build yet, rebuild pristine: `,
+          h("code", null, m.context.rebuild ?? "west build -p"),
+        )
       : null,
     h("span", { class: "spacer" }),
     state.busy ? h("span", { class: "muted" }, "Applying…") : null,

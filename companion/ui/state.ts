@@ -194,6 +194,27 @@ export async function applyEdit(nodePath: string, property: string, value: strin
   );
 }
 
+/** Creates the board overlay of a build without one; it becomes the write target. */
+export async function createOverlay(): Promise<void> {
+  if (state.busy) return;
+  state.busy = true;
+  rerender();
+  try {
+    const res = await api.createOverlay();
+    if (!res.applied) notify("error", `Overlay not created${res.error ? `: ${res.error}` : ""}`);
+    else {
+      if (res.file) state.overlay = res.file;
+      notify("info", `Created ${res.file ?? "the overlay"}`);
+    }
+  } catch (e) {
+    notify("error", errorText(e));
+  } finally {
+    state.busy = false;
+    rerender();
+    void refresh();
+  }
+}
+
 /** Runs one overlay change: busy flag, result message, refetch. */
 export async function applyChange(run: () => Promise<{ applied: boolean; error?: string }>, done: string, what: string): Promise<boolean> {
   if (!canEdit()) return false;

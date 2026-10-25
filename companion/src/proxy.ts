@@ -7,8 +7,8 @@
 // - info/hint diagnostics in SDK and third-party modules are dropped;
 // - "open visual editor" starts the local web UI (SPEC D15, 4.3).
 
-import { watch, type FSWatcher } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, watch, writeFileSync, type FSWatcher } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "./jsonrpc.js";
 import { Peer } from "./jsonrpc.js";
@@ -21,7 +21,10 @@ import {
   discoverBuilds,
   externalRoots,
   isUnder,
+  newOverlayTarget,
+  pristineCommand,
   restrictedDefaults,
+  withPendingOverlay,
   workspaceModules,
   type BuildContext,
 } from "./zephyr.js";
@@ -57,6 +60,7 @@ export class Proxy {
   /** ctxName -> context id, as returned by requestContext. */
   private requested = new Map<string, string>();
   private fingerprint = "";
+  private builds: BuildContext[] = [];
   private contexts: ContextListItem[] = [];
   /** Last file Zed opened or asked about; drives the post-sync context choice. */
   private currentFile?: string;
@@ -81,6 +85,13 @@ export class Proxy {
       docs: this.docs,
       external: () => this.external,
       canShowDocument: () => this.canShowDocument,
+      build: (name) => {
+        const b = this.builds.find((x) => x.ctxName === name);
+        // the context name is the build directory relative to the topdir, plus the image
+        const dir = b?.image ? b.ctxName.slice(0, -(b.image.length + 1)) : b?.ctxName;
+        return b && { rebuild: pristineCommand(b.westCommand, dir!), pending: b.pending, create: newOverlayTarget(b, this.external) };
+      },
+      createOverlay: (name) => this.createOverlay(name),
     });
     this.ui = new UiServer(this.backend);
   }
@@ -254,10 +265,11 @@ export class Proxy {
     if (!this.root) return;
     this.ws ??= await loadWorkspace(this.root);
     const topdir = this.ws?.topdir ?? this.root;
-    const builds = discoverBuilds(topdir, defaultDiscovery);
-    const fingerprint = JSON.stringify(builds.map((b) => [b.ctxName, b.mtimeMs]));
+    if (this.fingerprint === "" && this.ws) this.external = externalRoots(this.ws);
+    const builds = discoverBuilds(topdir, defaultDiscovery).map((b) => withPendingOverlay(b, this.external));
+    this.builds = builds;
+    const fingerprint = JSON.stringify(builds.map((b) => [b.ctxName, b.mtimeMs, b.pending]));
     if (this.fingerprint === "" && this.ws) {
-      this.external = externalRoots(this.ws);
       await this.server.request("devicetree/setDefaultSettings", restrictedDefaults(this.ws, workspaceModules(this.ws)));
       log(`workspace ${topdir}: zephyr ${this.ws.zephyrBase ?? "not found"}, ${this.ws.projects.length} projects`);
     }
@@ -270,7 +282,7 @@ export class Proxy {
       }
       this.requested.clear();
       for (const b of builds) {
-        const { buildDir: _dir, image: _image, mtimeMs: _mtime, ...ctx } = b;
+        const { buildDir: _dir, image: _image, mtimeMs: _mtime, appDir: _app, board: _board, westCommand: _west, pending: _pending, ...ctx } = b;
         try {
           const item = await this.server.request<ContextListItem>("devicetree/requestContext", ctx);
           this.requested.set(b.ctxName, item.id);
@@ -284,6 +296,30 @@ export class Proxy {
       this.uiChanged("contexts", 0);
     }
     this.watchBuilds(topdir, builds);
+  }
+
+  /**
+   * Creates the board overlay of a build that has none and re-registers the
+   * contexts with it, keeping the same build active. The build itself uses the
+   * file only after cmake runs again.
+   */
+  private async createOverlay(name: string): Promise<string> {
+    const b = this.builds.find((x) => x.ctxName === name);
+    const file = b && newOverlayTarget(b, this.external);
+    if (!file) throw new Error(`no overlay can be created for ${name}`);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `/* Devicetree overlay for ${b!.board}, created by the visual editor. */\n`, { flag: "wx" });
+    log(`created ${file}`);
+    const run = this.syncing.then(() => this.sync());
+    this.syncing = run.catch((e) => log("sync failed", e));
+    await run;
+    const id = this.requested.get(name);
+    if (id) {
+      await this.server.request("devicetree/setActive", { id });
+      await this.refreshContexts();
+      this.uiChanged("overlay", 0);
+    }
+    return file;
   }
 
   private watchBuilds(topdir: string, builds: BuildContext[]): void {

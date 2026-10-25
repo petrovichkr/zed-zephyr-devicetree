@@ -44,6 +44,7 @@ describe("UiServer", () => {
       edits.push(req);
       return { applied: true };
     },
+    createOverlay: async () => ({ applied: true, file: "/w/app/boards/b.overlay" }),
     movePin: async (req) => {
       edits.push(req);
       return { applied: false, conflict: ["/soc/x"] };

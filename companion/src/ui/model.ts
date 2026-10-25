@@ -86,6 +86,12 @@ export interface UiContext {
   active: boolean;
   /** Overlay files the editor may write to (user files only), last = default. */
   overlays: string[];
+  /** Command that rebuilds a discovered build from scratch (picks up new overlays). */
+  rebuild?: string;
+  /** Overlays the build has not picked up yet: cmake must run again. */
+  pending?: string[];
+  /** Board overlay the editor can create when the build has no user overlay. */
+  newOverlay?: string;
 }
 
 export interface UiModel {

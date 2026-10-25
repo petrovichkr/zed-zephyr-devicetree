@@ -73,6 +73,15 @@ createServer(async (req, res) => {
       return json(res, {});
     case "/api/catalog":
       return setTimeout(() => json(res, catalog[url.searchParams.get("bus")] ?? []), 500);
+    case "/api/create-overlay": {
+      const ctx = contexts.find((c) => c.active);
+      if (!ctx.newOverlay) return json(res, { applied: false, error: "no overlay target" });
+      ctx.overlays = [ctx.newOverlay];
+      ctx.pending = [ctx.newOverlay];
+      ctx.newOverlay = undefined;
+      setTimeout(() => changed("overlay"), 100);
+      return json(res, { applied: true, file: ctx.overlays[0] });
+    }
     case "/api/edits":
     case "/api/assign-pin":
     case "/api/move-pin":

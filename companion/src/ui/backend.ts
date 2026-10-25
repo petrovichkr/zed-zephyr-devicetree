@@ -23,6 +23,10 @@ export interface EditorHooks {
   external(): string[];
   /** Zed advertised window/showDocument support in initialize. */
   canShowDocument(): boolean;
+  /** What the companion knows about a discovered build, by context name. */
+  build?(name: string): { rebuild: string; pending?: string[]; create?: string } | undefined;
+  /** Creates the board overlay of a build without one; resolves to its path. */
+  createOverlay?(name: string): Promise<string>;
 }
 
 interface ContextListItem {
@@ -55,14 +59,32 @@ export class EditorBackend implements UiBackend {
     const list = (await this.h.server.request<ContextListItem[]>("devicetree/getContexts")) ?? [];
     const external = this.h.external();
     for (const c of list) this.includePaths.set(c.id, (c.settings?.includePaths ?? []).map((p) => resolve(c.settings?.cwd ?? "", p)));
-    return list.map((c) => ({
-      id: c.id,
-      names: c.ctxNames,
-      active: c.active,
-      overlays: (c.settings?.overlays ?? [])
-        .map((o) => resolve(c.settings?.cwd ?? "", o))
-        .filter((o) => !isUnder(o, external)),
-    }));
+    return list.map((c) => {
+      const build = c.ctxNames.map((n) => this.h.build?.(n)).find(Boolean);
+      return {
+        id: c.id,
+        names: c.ctxNames,
+        active: c.active,
+        overlays: (c.settings?.overlays ?? [])
+          .map((o) => resolve(c.settings?.cwd ?? "", o))
+          .filter((o) => !isUnder(o, external)),
+        ...(build && { rebuild: build.rebuild, pending: build.pending, newOverlay: build.create }),
+      };
+    });
+  }
+
+  /** Board overlay for the active build when it has no user overlay (SPEC D32). */
+  async createOverlay(): Promise<{ applied: boolean; error?: string; file?: string }> {
+    const active = (await this.contexts()).find((c) => c.active);
+    if (!active?.newOverlay || !this.h.createOverlay) return { applied: false, error: "this build cannot get a new overlay" };
+    const name = active.names.find((n) => this.h.build?.(n)?.create === active.newOverlay)!;
+    try {
+      const file = await this.h.createOverlay(name);
+      this.invalidate();
+      return { applied: true, file };
+    } catch (e) {
+      return { applied: false, error: String((e as Error)?.message ?? e) };
+    }
   }
 
   /** Something the model depends on changed (buffer, save, active context). */

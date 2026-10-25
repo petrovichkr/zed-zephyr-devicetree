@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadWorkspace, parseIni, readManifestProjects } from "../src/west.js";
-import { discoverBuilds, externalRoots, isUnder, restrictedDefaults, workspaceModules } from "../src/zephyr.js";
+import { discoverBuilds, externalRoots, isUnder, newOverlayTarget, pristineCommand, restrictedDefaults, withPendingOverlay, workspaceModules } from "../src/zephyr.js";
 
 let top: string;
 const put = (rel: string, text = "") => {
@@ -56,8 +56,9 @@ beforeAll(() => {
 
   // sysbuild: top-level images list, per-image build_info with devicetree
   put("build/main/build_info.yml", "cmake:\n  images:\n   - name: 'app'\n   - name: 'mcuboot'\n  sysbuild: 'true'\n");
-  put("build/main/app/build_info.yml", buildInfo(["boards/b.dts"]));
-  put("build/main/mcuboot/build_info.yml", buildInfo(["boards/b.dts", "apps/app/sysbuild/mcuboot/boards/b.overlay"]));
+  const app = (dir: string) => `  application:\n    source-dir: '${top}/${dir}'\n  board:\n    name: 'b'\n    qualifiers: 'soc/cpu'\n`;
+  put("build/main/app/build_info.yml", buildInfo(["boards/b.dts"], app("apps/app")));
+  put("build/main/mcuboot/build_info.yml", buildInfo(["boards/b.dts", "apps/app/sysbuild/mcuboot/boards/b.overlay"], app("dist/zp/bootloader/mcuboot/boot/zephyr")));
   put("build/main/app/compile_commands.json", "[]");
   // plain build
   put("build/ns/build_info.yml", buildInfo(["boards/native_sim.dts", "apps/app/boards/native_sim.overlay"]));
@@ -99,6 +100,36 @@ describe("zephyr", () => {
     expect(mcuboot.dtsFile).toBe(join(top, "boards/b.dts"));
     expect(mcuboot.overlays).toEqual([join(top, "apps/app/sysbuild/mcuboot/boards/b.overlay")]);
     expect(builds.find((b) => b.ctxName === "build/main/app")!.compileCommands).toBeDefined();
+  });
+
+  it("offers a board overlay in the application for a build without a user overlay", async () => {
+    const ext = externalRoots((await loadWorkspace(top, { PATH: "" }))!);
+    const builds = discoverBuilds(top);
+    const app = builds.find((b) => b.ctxName === "build/main/app")!;
+    const target = join(top, "apps/app/boards/b.overlay");
+    expect(app.appDir).toBe(join(top, "apps/app"));
+    expect(newOverlayTarget(app, ext)).toBe(target);
+    // has a user overlay already
+    expect(newOverlayTarget(builds.find((b) => b.ctxName === "build/main/mcuboot")!, ext)).toBeUndefined();
+    // SDK application (hello_world, mcuboot): never written
+    expect(newOverlayTarget({ ...app, appDir: join(top, "dist/zp/zephyr/samples/hello_world") }, ext)).toBeUndefined();
+    expect(withPendingOverlay(app, ext).pending).toBeUndefined();
+
+    put("apps/app/boards/b.overlay", "/* new */\n");
+    expect(newOverlayTarget(app, ext)).toBeUndefined();
+    const pending = withPendingOverlay(app, ext);
+    expect(pending.overlays).toEqual([target]);
+    expect(pending.pending).toEqual([target]);
+    // once cmake lists it, nothing is pending
+    expect(withPendingOverlay({ ...app, overlays: [target] }, ext).pending).toBeUndefined();
+  });
+
+  it("rebuilds pristine with the recorded west command", () => {
+    expect(pristineCommand("/w/.venv/bin/west build -b b/soc/cpu apps/app -d build/main -p --sysbuild -- -DX=1", "build/main")).toBe(
+      "west build -p -b b/soc/cpu apps/app -d build/main --sysbuild -- -DX=1",
+    );
+    expect(pristineCommand("west build -p auto -b b app", "build")).toBe("west build -p -b b app");
+    expect(pristineCommand(undefined, "build/x")).toBe("west build -d build/x -p");
   });
 
   it("derives restricted-mode defaults from modules and zephyr", async () => {

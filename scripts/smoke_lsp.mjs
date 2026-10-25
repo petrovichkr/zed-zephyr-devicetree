@@ -10,6 +10,8 @@
 // env COMPANION=<companion.js>: run the server behind the companion and send
 //   empty user settings, as a fresh Zed install would.
 // env UI_CHECK=...: see below; exercises the visual editor end to end.
+// env UI_CREATE=1: with UI_CHECK, first create the board overlay if the build has
+//   none (writes a file: use a scratch workspace, never the reference project).
 // env PROBE_OUT=<dir>: also dump serializedContext / memoryViews of the active context.
 
 import { spawn } from "node:child_process";
@@ -146,8 +148,14 @@ if (process.env.UI_CHECK) {
   const page = await fetch(url);
   console.log(`ui page: ${page.status}, ${(await page.text()).length} bytes`);
   const t = Date.now();
-  const model = await (await api("/api/model")).json();
+  let model = await (await api("/api/model")).json();
   console.log(`ui model: ${Object.keys(model.nodes).length} nodes, overlays ${JSON.stringify(model.context.overlays.map((o) => o.split("/").pop()))} in ${Date.now() - t} ms`);
+  if (process.env.UI_CREATE && model.context.newOverlay) {
+    // env UI_CREATE=1: create the board overlay of a build without one (writes the file!)
+    const res = await (await api("/api/create-overlay", {})).json();
+    model = await (await api("/api/model")).json();
+    console.log("ui create-overlay:", JSON.stringify(res), `active ${model.context.names}, overlays ${JSON.stringify(model.context.overlays)}, pending ${JSON.stringify(model.context.pending)}, rebuild ${model.context.rebuild}`);
+  }
   const overlay = model.context.overlays.at(-1);
   const res = await (await api("/api/edit", { nodePath, overlay, property, value })).json();
   console.log("ui edit:", JSON.stringify(res), JSON.stringify(edits));
