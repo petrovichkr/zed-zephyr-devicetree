@@ -29,7 +29,7 @@ export interface UiOverviewPin {
 /** One LED or key of a gpio-leds / gpio-keys / pwm-leds node. */
 export interface UiIndicator {
   path: string;
-  kind: "led" | "key" | "pwm-led";
+  kind: "led" | "key" | "pwm-led" | "adc";
   /** `label` property, else the node name. */
   name: string;
   disabled: boolean;
@@ -42,6 +42,8 @@ export interface UiIndicator {
   conflict: boolean;
   /** gpio-keys: `zephyr,code` as written (INPUT_KEY_0). */
   code?: string;
+  /** adc: nodes that read the channel through `io-channels`. */
+  users?: string[];
   /** pwm-leds: `<&ledc0 0 50000 PWM_POLARITY_NORMAL>`; pin from the controller's pinctrl channel. */
   pwm?: { controller: string; channel: string; period: string; inverted: boolean };
 }
@@ -98,6 +100,17 @@ function pwmPin(nodes: Record<string, UiNode>, pins: UiPinMap, ctrl: UiNode | un
   const used = pins.usages.filter((u) => owners.has(u.owner) && (u.state ?? "default") === "default");
   const ch = used.filter((u) => Number(/(?:CH|OUT)_?(\d+)/i.exec(u.function ?? "")?.[1]) === Number(channel));
   return ch.length === 1 ? ch[0]!.pin : undefined;
+}
+
+/** Pin of an ADC channel: STM32 pinctrl `adc1_in0_pa0`, ESP32-S3 fixed map (ADC1 CHn = GPIOn+1, ADC2 CHn = GPIOn+11). */
+function adcPin(nodes: Record<string, UiNode>, pins: UiPinMap, adc: UiNode, soc: string[], ch: number): string | undefined {
+  const viaPinctrl = pins.usages.find((u) => u.owner === adc.path && (u.state ?? "default") === "default" && Number(/_in_?(\d+)/i.exec(u.function ?? "")?.[1]) === ch);
+  if (viaPinctrl) return viaPinctrl.pin;
+  if (soc.some((c) => /esp32s3/.test(c))) {
+    const unit = Number(cells(adc.props.find((p) => p.name === "unit")?.value ?? "")[0] ?? 1);
+    if (ch >= 0 && ch < 10) return `GPIO${ch + (unit === 2 ? 11 : 1)}`;
+  }
+  return undefined;
 }
 
 export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, pins: UiPinMap, buses: UiBus[], catalog?: UiPinCatalog): UiOverview {
@@ -181,6 +194,39 @@ export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<st
         }
         return item;
       });
+  }
+
+  // ADC channels: channel@N children, their pin and the io-channels users
+  const ioUsers = new Map<string, string[]>();
+  for (const n of Object.values(nodes)) {
+    const c = cells(n.props.find((p) => p.name === "io-channels")?.value ?? "");
+    for (let i = 0; i < c.length; i++) {
+      const ctrl = c[i]!.startsWith("&") ? byLabel.get(c[i]!.slice(1)) : undefined;
+      if (!ctrl || c[i + 1] === undefined) continue;
+      const key = `${ctrl.path}\0${Number(c[i + 1])}`;
+      ioUsers.set(key, [...(ioUsers.get(key) ?? []), n.path]);
+    }
+  }
+  const soc = Object.values(nodes).flatMap((n) => n.compatible);
+  for (const b of blocks.values()) {
+    if (b.class !== "adc") continue;
+    const n = nodes[b.path]!;
+    const chans = n.children.map((c) => nodes[c]).filter((c): c is UiNode => !!c && /^channel@/.test(c.name));
+    if (!chans.length) continue;
+    b.items = chans.map((c) => {
+      const ch = cellNumber(cells(c.props.find((p) => p.name === "reg")?.value ?? "")[0] ?? "") ?? Number(/@(\w+)$/.exec(c.name)?.[1]);
+      const pin = adcPin(nodes, pins, n, soc, ch);
+      return {
+        path: c.path,
+        kind: "adc",
+        name: `CH${ch}`,
+        disabled: c.disabled || n.disabled,
+        aliases: aliases.get(c.path) ?? [],
+        pin,
+        conflict: !!pin && conflicts.has(pin),
+        users: ioUsers.get(`${n.path}\0${ch}`) ?? [],
+      };
+    });
   }
 
   const groups = new Map<string, UiPeripheral[]>();

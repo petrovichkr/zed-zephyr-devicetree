@@ -30,6 +30,7 @@ const bindings: Record<string, UiBinding> = {
   serial: b("serial"),
   cpu: b("cpu"),
   odd: b("vendor-thing"),
+  adc: b("adc"),
 };
 
 function overview(...nodes: UiNode[]) {
@@ -85,5 +86,22 @@ describe("buildOverview", () => {
     expect(bindingClass("/ws/zephyr/dts/bindings/serial/espressif,esp32-uart.yaml")).toBe("serial");
     expect(bindingClass("C:\\ws\\dts\\bindings\\i2c\\x.yaml")).toBe("i2c");
     expect(bindingClass(undefined)).toBe("");
+  });
+});
+
+describe("ADC channels", () => {
+  it("lists channel@N with the pin (ESP32-S3 map) and io-channels users", () => {
+    const o = overview(
+      node("/", { compatible: ["espressif,esp32s3"], children: ["/soc", "/sense"] }),
+      node("/soc", { children: ["/soc/adc@1"] }),
+      node("/soc/adc@1", { labels: ["adc0"], compatible: ["espressif,esp32-adc"], binding: "adc", children: ["/soc/adc@1/channel@0", "/soc/adc@1/channel@3"], p: { unit: "<1>" } }),
+      node("/soc/adc@1/channel@0", { p: { reg: "<0>" } }),
+      node("/soc/adc@1/channel@3", { p: { reg: "<3>" } }),
+      node("/sense", { p: { "io-channels": "<&adc0 0>" } }),
+    );
+    expect(o.groups.flatMap((g) => g.blocks).find((x) => x.path === "/soc/adc@1")!.items).toMatchObject([
+      { kind: "adc", name: "CH0", pin: "GPIO1", users: ["/sense"] },
+      { kind: "adc", name: "CH3", pin: "GPIO4", users: [] },
+    ]);
   });
 });

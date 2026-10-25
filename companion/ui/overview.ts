@@ -49,15 +49,17 @@ function itemRow(m: UiModel, b: UiPeripheral, it: UiIndicator, bx: number, y: nu
   const err = it.conflict ? " error" : "";
   const ext = it.via ? " ext" : "";
   const low = !!it.flags?.activeLow;
-  const extra = it.kind === "key" ? (it.code ?? "") : it.pwm ? `CH${it.pwm.channel} · ${period(it.pwm.period)}` : "";
+  const users = (it.users ?? []).map((u) => m.nodes[u]?.labels[0] ?? m.nodes[u]?.name ?? u);
+  const extra = it.kind === "adc" ? (users[0] ?? "") : it.kind === "key" ? (it.code ?? "") : it.pwm ? `CH${it.pwm.channel} · ${period(it.pwm.period)}` : "";
   const tags = flagTags(it.flags);
   // about 21 mono characters fit next to the glyph: the right column wins, the name is clipped
   const right = clip(extra || it.aliases[0] || "", 12);
   const name = clip(it.name, Math.max(6, 21 - right.length - (tags ? tags.length + 1 : 0) - 1));
   const title = [
     `${it.path}${it.aliases.length ? ` (alias ${it.aliases.join(", ")})` : ""}`,
-    it.pin ? `${it.pin}${it.via ? ` via the external GPIO controller ${it.via}` : ""}` : it.pwm ? "PWM channel pin unknown" : "no pin",
+    it.pin ? `${it.pin}${it.via ? ` via the external GPIO controller ${it.via}` : ""}` : it.pwm || it.kind === "adc" ? "channel pin unknown" : "no pin",
     flagsText(it.flags),
+    it.kind === "adc" ? (users.length ? `read by ${users.join(", ")} (io-channels)` : "no io-channels user") : "",
     it.pwm ? `PWM ${it.pwm.controller} channel ${it.pwm.channel}, period ${period(it.pwm.period)}, ${it.pwm.inverted ? "inverted" : "normal"} polarity` : it.code ? `code ${it.code}` : "",
     "click: select",
   ]
@@ -69,7 +71,7 @@ function itemRow(m: UiModel, b: UiPeripheral, it: UiIndicator, bx: number, y: nu
       { class: `item${off}${state.selected === it.path ? " selected" : ""}`, onclick: () => select(it.path) },
       s("title", {}, title),
       s("rect", { class: "item-bg", x: bx + 4, y: y - ITEM_ROW / 2, width: BLOCK_W - 8, height: ITEM_ROW, rx: 3 }),
-      it.kind === "key" ? keyGlyph(bx + 9, y + 1, low) : ledGlyph(bx + 9, y + 1, low, it.pwm),
+      it.kind === "adc" ? classGlyph("adc", bx + 12, y - 6) : it.kind === "key" ? keyGlyph(bx + 9, y + 1, low) : ledGlyph(bx + 9, y + 1, low, it.pwm),
       s(
         "svg",
         { x: bx + 44, y: y - ITEM_ROW / 2, width: BLOCK_W - 50, height: ITEM_ROW, overflow: "hidden" },
