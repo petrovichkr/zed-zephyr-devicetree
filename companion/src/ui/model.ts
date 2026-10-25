@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
+import { buildOverview, type UiOverview } from "./overview.js";
 import { buildPinMap, type UiPinMap } from "./pins.js";
 
 /** 0-based position, like LSP. `file` is an absolute path. */
@@ -84,6 +85,7 @@ export interface UiModel {
   bindings: Record<string, UiBinding>;
   pins: UiPinMap;
   buses: UiBus[];
+  overview: UiOverview;
   memory: UiMemoryRegion[];
 }
 
@@ -215,13 +217,15 @@ export function buildModel(
       .filter((c) => nodes[c]);
   }
   const pins = buildPinMap(nodes);
+  const buses = buildBuses(nodes, bindings, pins);
   return {
     context,
     root: "/",
     nodes,
     bindings,
     pins,
-    buses: buildBuses(nodes, bindings, pins),
+    buses,
+    overview: buildOverview(nodes, bindings, pins, buses),
     memory: Object.values(memory?.trees ?? {}).map(memoryTree),
   };
 }

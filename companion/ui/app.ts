@@ -9,6 +9,7 @@ import { renderDetails } from "./details.js";
 import { h, patch } from "./dom.js";
 import { tail } from "./format.js";
 import { renderMemory } from "./memory.js";
+import { renderOverview } from "./overview.js";
 import { renderPins } from "./pins.js";
 import { renderTree } from "./tree.js";
 import { errorText, notify, refresh, rerender, setRenderer, state } from "./state.js";
@@ -93,6 +94,7 @@ function tabs(): HTMLElement {
     "nav",
     { class: "tabs", role: "tablist" },
     tab("tree", "Tree"),
+    tab("overview", "Overview"),
     tab("buses", `Buses${busErrors(state.model)}`),
     tab("memory", `Memory${state.model ? ` (${state.model.memory.length})` : ""}`),
     tab("pins", `Pins${state.model?.pins.conflicts.length ? ` (${state.model.pins.conflicts.length} conflict${state.model.pins.conflicts.length === 1 ? "" : "s"})` : ""}`),
@@ -120,6 +122,7 @@ function body(): HTMLElement {
   if (!state.loaded) return h("main", { class: "center muted" }, "Loading…");
   if (!m) return h("main", { class: "center muted" }, "Waiting for devicetree context… Open a .dts or .overlay file in Zed.");
   if (state.tab === "memory") return h("main", { class: "single" }, renderMemory(m));
+  if (state.tab === "overview") return h("main", { class: "split overview-split" }, renderOverview(m), renderDetails(m));
   if (state.tab === "buses") return h("main", { class: "split buses-split" }, renderBuses(m), renderDetails(m));
   if (state.tab === "pins") return h("main", { class: "single" }, renderPins(m));
   return h("main", { class: "split" }, renderTree(m), renderDetails(m));

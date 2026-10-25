@@ -4,7 +4,7 @@ import type { UiCatalogEntry } from "../src/ui/catalog.js";
 import type { UiContext, UiModel } from "../src/ui/model.js";
 import * as api from "./api.js";
 
-export type Tab = "tree" | "buses" | "memory" | "pins";
+export type Tab = "tree" | "overview" | "buses" | "memory" | "pins";
 
 export const CUSTOM = "\u0000custom";
 
@@ -54,6 +54,8 @@ export const state = {
   unknownOpen: false,
   /** Buses tab: also list disabled buses that have no devices. */
   busShowAll: false,
+  /** Overview tab: also draw disabled peripherals. */
+  overviewDisabled: false,
   device: null as DeviceDraft | null,
   /** Device bindings by bus type; "loading" while dts-lsp builds them. */
   catalogs: new Map<string, UiCatalogEntry[] | "loading">(),

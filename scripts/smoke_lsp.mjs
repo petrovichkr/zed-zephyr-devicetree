@@ -154,6 +154,9 @@ if (process.env.UI_CHECK) {
   // stage 5: buses, device catalog and a new child node on the first enabled I2C bus
   const i2c = model.buses.find((b) => b.type === "i2c" && !b.disabled);
   console.log(`ui buses: ${model.buses.length}, issues ${model.buses.reduce((n, b) => n + b.issues.length, 0)}`);
+  // stage 6: overview
+  const blocks = model.overview.groups.flatMap((g) => g.blocks);
+  console.log(`ui overview: ${model.overview.soc.compatible.at(-1)}, ${blocks.filter((b) => !b.disabled).length}/${blocks.length} peripherals enabled, groups ${model.overview.groups.map((g) => g.name).join(", ")}`);
   if (i2c) {
     const tc = Date.now();
     const catalog = await (await api("/api/catalog?bus=i2c")).json();
