@@ -1,73 +1,77 @@
 # zed-zephyr-devicetree
 
-Расширение для редакторов [Zed](https://zed.dev) и VS Code (D33) с поддержкой Zephyr Devicetree (`.dts`, `.dtsi`,
-`.overlay`) и YAML-биндингов. Аналог VS Code-расширения nRF DeviceTree, но для всех плат,
-поддерживаемых Zephyr.
+Extensions for [Zed](https://zed.dev) and VS Code (D33) that support Zephyr devicetree (`.dts`,
+`.dtsi`, `.overlay`) and binding YAML. An analog of the nRF DeviceTree extension for VS Code, but
+for every board Zephyr supports.
 
-**Источник истины: [`docs/SPEC.md`](docs/SPEC.md).** Там решения D1…D14, требования R1…R8, этапы
-и открытые вопросы. Решения меняются только по согласованию с пользователем, после чего
-SPEC.md обновляется.
+**Source of truth: [`docs/SPEC.md`](docs/SPEC.md).** It holds decisions D1…D33, requirements
+R1…R8, stages and open questions. Decisions change only with the user's agreement; SPEC.md is
+updated afterwards.
 
-## Ключевое
+## Key points
 
-- Языковое ядро — [`devicetree-language-server`](https://github.com/kylebonnici/dts-lsp)
-  (npm, Apache-2.0). Расширение его ставит и запускает. Доработки ядра (в том числе
-  автоконтексты из `build_info.yml`) отправляем в upstream; временные обходы держим в
-  расширении и помечаем `TODO(upstream)`.
-- Грамматика — `joelspadin/tree-sitter-devicetree` на фиксированном `rev`.
-- Эталонный проект: `~/zephyr-workspace/`. Это T2 west-workspace,
-  Zephyr лежит в `dist/zephyrproject/zephyr`, репозиторий сам является модулем, есть
-  sysbuild, snippets и много `build/*`. Изменения проверять на нём. **Его не модифицировать.**
+- Language core: [`devicetree-language-server`](https://github.com/kylebonnici/dts-lsp)
+  (npm, Apache-2.0). The extensions install and start it. Core improvements (including
+  auto-contexts from `build_info.yml`) go upstream; temporary workarounds stay in the
+  extension and are marked `TODO(upstream)`.
+- Grammar: `joelspadin/tree-sitter-devicetree` at a pinned `rev` (Zed); our own TextMate
+  grammar in VS Code.
+- Reference project: `~/zephyr-workspace/`. A T2 west workspace, Zephyr lives
+  in `dist/zephyrproject/zephyr`, the repository is a module itself, with sysbuild, snippets and
+  many `build/*` directories. Verify changes on it. **Never modify it.**
 
-## Структура репозитория (ориентир)
+## Repository layout (guide)
 
 ```
-zed/                        # Zed-обёртка (D33); `zed: install dev extension` указывать на неё
+zed/                        # Zed wrapper (D33); point `zed: install dev extension` here
   extension.toml            # id, name, version, schema_version, [grammars.*], [language_servers.*]
   Cargo.toml                # crate-type = ["cdylib"], zed_extension_api
-  src/lib.rs                # impl zed::Extension: ставит dts-lsp, пишет и запускает companion
+  src/lib.rs                # impl zed::Extension: installs dts-lsp, writes and starts the companion
   languages/devicetree/     # config.toml + highlights/brackets/indents/outline/injections.scm
-  LICENSE                   # копия корневой: реестр Zed требует лицензию в каталоге расширения
-vscode/                     # VS Code-обёртка (D33): src/extension.ts (два LanguageClient), src/webview.ts, syntaxes/, test/
-  dist/                     # генерируется: extension.js, копия companion.cjs, dts-lsp; не коммитится
-companion/                  # Node/TS LSP-прокси (D15), общий для обоих редакторов: src/{main,proxy,jsonrpc,west,zephyr}.ts, test/
-companion/dist/companion.cjs  # бандл, КОММИТИТСЯ (include_str! в zed/src/lib.rs, D17)
-companion/src/ui/           # визуальный редактор, backend: model.ts (контракт с UI), edits.ts, server.ts, backend.ts
-companion/ui/               # визуальный редактор, frontend (vanilla TS) -> dist/ui.html, вшивается в бандл
-tests/fixtures/             # скелет структуры эталонного проекта (R8)
+  LICENSE                   # copy of the root one: the Zed registry wants it in the extension dir
+vscode/                     # VS Code wrapper (D33): src/extension.ts (two LanguageClients), src/webview.ts,
+                            #   src/yamlschema.ts, syntaxes/, schemas/, test/
+  dist/                     # generated: extension.js, companion.cjs copy, dts-lsp; not committed
+companion/                  # Node/TS LSP proxy (D15), shared by both editors: src/{main,proxy,jsonrpc,west,zephyr}.ts, test/
+companion/dist/companion.cjs  # bundle, COMMITTED (include_str! in zed/src/lib.rs, D17)
+companion/src/bindings/     # binding YAML language server (`companion.cjs --bindings`, D22)
+companion/src/ui/           # visual editor backend: model.ts (contract with the UI), edits.ts, server.ts, backend.ts
+companion/ui/               # visual editor frontend (vanilla TS) -> dist/ui.html, embedded in the bundle
 docs/SPEC.md
 ```
 
-Документация Zed: https://zed.dev/docs/extensions/developing-extensions и
-https://zed.dev/docs/extensions/languages. API меняется, сверяться с актуальной версией
-и с `zed_extension_api` на docs.rs.
+Zed docs: https://zed.dev/docs/extensions/developing-extensions and
+https://zed.dev/docs/extensions/languages. The API changes; check the current version and
+`zed_extension_api` on docs.rs.
 
-## Разработка
+## Development
 
-- Установка для отладки: в Zed выполнить `zed: install dev extension` и выбрать папку `zed/`.
-  Логи: `zed: open log` или `zed --foreground`.
-- **После правок в `companion/src` или `companion/ui`**: `cd companion && npm run typecheck && npm run typecheck:ui && npm test && npm run build`,
-  затем `cargo build` в `zed/`. Без пересборки бандла Zed запустит старый companion.
+- Debug install in Zed: run `zed: install dev extension` and pick the `zed/` folder.
+  Logs: `zed: open log` or `zed --foreground`.
+- **After changes in `companion/src` or `companion/ui`**: `cd companion && npm run typecheck && npm run typecheck:ui && npm test && npm run build`,
+  then `cargo build` in `zed/` and `npm run build` in `vscode/`. Without rebuilding the bundle
+  the editors run the old companion.
 - VS Code: `cd vscode && npm run typecheck && npm run build`; `VSCODE_EXEC=/usr/share/code/code npm test`
-  (интеграционный тест на эталоне, временный профиль), `npm run test:grammar <файлы>` после правки
-  TextMate-грамматики, `npm run package` → `dist/zephyr-devicetree.vsix`. Отладка: F5 в `vscode/`.
-- Companion общий: его поведение для Zed не должно меняться от возможностей VS Code — они
-  включаются только через `capabilities.experimental.zephyrDevicetree` клиента.
-- Rust-часть собирается под `wasm32-wasip2` (`rustup target add wasm32-wasip2`).
-- Проверки (в `zed/`): `cargo fmt --check`, `cargo clippy --target wasm32-wasip2`, `cargo test`.
-- После правки `.scm`: `scripts/check_queries.py <файлы эталона>` (venv с `tree-sitter` и
-  собранной грамматикой). Невалидный запрос в Zed молча отключает подсветку.
-- Изменения в работе с LSP проверять без Zed через `scripts/smoke_lsp.mjs` на эталоне
-  (`COMPANION=companion/dist/companion.cjs` — через companion, с пустыми user settings;
-  `UI_CHECK="<nodePath>|<prop>|<value>"` — сквозная проверка веб-UI, правка печатается, но не применяется).
-- UI без Zed: `node companion/scripts/dev-ui.mjs <model.json>` (заглушка API, токен `dev`).
-- Custom-API dts-lsp смотреть в исходниках на теге версии из `NPM_VERSION` (`zed/src/lib.rs`)
-  (`server/src/server.ts`, раздел `CUSTOM APIS`), а не в минифицированном бандле.
-- В Zed одноимённые captures разрешаются в пользу **последнего** шаблона: общие правила идут первыми.
+  (integration test on the reference project in a throwaway profile), `npm run test:grammar <files>`
+  after editing the TextMate grammar, `npm run package` → `dist/zephyr-devicetree.vsix`.
+  Debugging: F5 in `vscode/`.
+- The companion is shared: its behaviour for Zed must not change because of VS Code features;
+  those are enabled only through the client's `capabilities.experimental.zephyrDevicetree`.
+- The Rust part builds for `wasm32-wasip2` (`rustup target add wasm32-wasip2`).
+- Checks (in `zed/`): `cargo fmt --check`, `cargo clippy --target wasm32-wasip2`, `cargo test`.
+- After editing `.scm`: `scripts/check_queries.py <reference files>` (venv with `tree-sitter` and
+  the built grammar). An invalid query silently disables highlighting in Zed.
+- Check LSP changes without an editor via `scripts/smoke_lsp.mjs` on the reference project
+  (`COMPANION=companion/dist/companion.cjs` runs through the companion with empty user settings;
+  `UI_CHECK="<nodePath>|<prop>|<value>"` exercises the web UI end to end, the edit is printed, not applied).
+- UI without an editor: `node companion/scripts/dev-ui.mjs <model.json>` (stub API, token `dev`).
+- Read dts-lsp's custom API in its sources at the tag of `NPM_VERSION` (`zed/src/lib.rs`)
+  (`server/src/server.ts`, section `CUSTOM APIS`), not in the minified bundle.
+- In Zed, captures with the same name resolve in favour of the **last** pattern: general rules go first.
 
-## Соглашения
+## Conventions
 
-- С пользователем общаемся по-русски. Код, идентификаторы и коммиты пишем по-английски.
-- Коммиты в стиле Conventional Commits. Лицензия Apache-2.0, SPDX-заголовки в исходниках.
-- Версии внешних зависимостей (грамматика, LSP) фиксируются явно.
-- Пути обрабатываются кроссплатформенно (Linux, macOS, Windows).
+- Talk to the user in Russian. Code, identifiers and commits are in English.
+- Conventional Commits. Apache-2.0 license, SPDX headers in sources.
+- Versions of external dependencies (grammar, LSP, npm packages) are pinned explicitly.
+- Paths are handled cross-platform (Linux, macOS, Windows).
