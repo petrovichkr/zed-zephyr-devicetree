@@ -35,6 +35,13 @@ const log = (...args: unknown[]) => console.error("[companion]", ...args);
 export class EditorBackend implements UiBackend {
   /** Serialized nodes of the last model, for edit planning. */
   private serialized: { id: string; nodes: Record<string, any> } | undefined;
+  /**
+   * serializedContext costs seconds on large SoCs (STM32 HAL pinctrl), so the
+   * model is cached until invalidate() and concurrent requests share one fetch.
+   */
+  private generation = 0;
+  private cached?: { generation: number; id: string; model: UiModel };
+  private inflight?: { generation: number; promise: Promise<UiModel | undefined> };
 
   constructor(private readonly h: EditorHooks) {}
 
@@ -51,7 +58,29 @@ export class EditorBackend implements UiBackend {
     }));
   }
 
+  /** Something the model depends on changed (buffer, save, active context). */
+  invalidate(): void {
+    this.generation++;
+  }
+
   async model(): Promise<UiModel | undefined> {
+    const generation = this.generation;
+    if (this.cached?.generation === generation) {
+      const active = (await this.contexts()).find((c) => c.active);
+      if (active?.id === this.cached.id) return { ...this.cached.model, context: active };
+    }
+    if (this.inflight?.generation !== generation) {
+      const promise = this.fetchModel(generation);
+      this.inflight = { generation, promise };
+      promise.finally(() => {
+        if (this.inflight?.promise === promise) this.inflight = undefined;
+      });
+    }
+    return this.inflight!.promise;
+  }
+
+  private async fetchModel(generation: number): Promise<UiModel | undefined> {
+    const t = Date.now();
     const active = (await this.contexts()).find((c) => c.active);
     if (!active) return undefined;
     const [nodes, memory] = await Promise.all([
@@ -60,7 +89,10 @@ export class EditorBackend implements UiBackend {
     ]);
     if (!nodes) return undefined;
     this.serialized = { id: active.id, nodes };
-    return buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+    const model = buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+    this.cached = { generation, id: active.id, model };
+    log(`model ${active.names[0] ?? active.id}: ${Object.keys(model.nodes).length} nodes in ${Date.now() - t} ms`);
+    return model;
   }
 
   async setActive(id: string): Promise<void> {
@@ -86,7 +118,8 @@ export class EditorBackend implements UiBackend {
     if (!active || !active.overlays.includes(resolve(req.overlay))) {
       return { applied: false, error: "target is not a user overlay of the active context" };
     }
-    if (this.serialized?.id !== active.id || !this.serialized.nodes[req.nodePath]) await this.model();
+    // plan against the current buffer, never a stale serialization
+    if (this.cached?.generation !== this.generation || this.serialized?.id !== active.id) await this.model();
     const node = this.serialized?.nodes[req.nodePath];
     if (!node) return { applied: false, error: `node ${req.nodePath} not found` };
 

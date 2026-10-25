@@ -68,25 +68,29 @@ export class Proxy {
   private readonly docs = new DocumentStore();
   private canShowDocument = false;
   private readonly ui: UiServer;
+  private readonly backend: EditorBackend;
   private uiTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly zed: Peer,
     private readonly server: Peer,
   ) {
-    this.ui = new UiServer(
-      new EditorBackend({
-        zed,
-        server,
-        docs: this.docs,
-        external: () => this.external,
-        canShowDocument: () => this.canShowDocument,
-      }),
-    );
+    this.backend = new EditorBackend({
+      zed,
+      server,
+      docs: this.docs,
+      external: () => this.external,
+      canShowDocument: () => this.canShowDocument,
+    });
+    this.ui = new UiServer(this.backend);
   }
 
-  /** Debounced "model may have changed" for open editor pages. */
-  private uiChanged(reason: string, delay = 500): void {
+  /**
+   * Debounced "model may have changed" for open editor pages. Typing waits
+   * longer: every rebuild costs a full serializedContext in dts-lsp.
+   */
+  private uiChanged(reason: string, delay = reason === "didChange" ? 1500 : 500): void {
+    this.backend.invalidate();
     clearTimeout(this.uiTimer);
     this.uiTimer = setTimeout(() => this.ui.changed(reason), delay);
   }

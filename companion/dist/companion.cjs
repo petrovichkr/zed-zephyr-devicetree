@@ -7836,6 +7836,13 @@ var EditorBackend = class {
   }
   /** Serialized nodes of the last model, for edit planning. */
   serialized;
+  /**
+   * serializedContext costs seconds on large SoCs (STM32 HAL pinctrl), so the
+   * model is cached until invalidate() and concurrent requests share one fetch.
+   */
+  generation = 0;
+  cached;
+  inflight;
   async contexts() {
     const list = await this.h.server.request("devicetree/getContexts") ?? [];
     const external = this.h.external();
@@ -7846,7 +7853,27 @@ var EditorBackend = class {
       overlays: (c.settings?.overlays ?? []).map((o) => (0, import_node_path2.resolve)(c.settings?.cwd ?? "", o)).filter((o) => !isUnder(o, external))
     }));
   }
+  /** Something the model depends on changed (buffer, save, active context). */
+  invalidate() {
+    this.generation++;
+  }
   async model() {
+    const generation = this.generation;
+    if (this.cached?.generation === generation) {
+      const active = (await this.contexts()).find((c) => c.active);
+      if (active?.id === this.cached.id) return { ...this.cached.model, context: active };
+    }
+    if (this.inflight?.generation !== generation) {
+      const promise = this.fetchModel(generation);
+      this.inflight = { generation, promise };
+      promise.finally(() => {
+        if (this.inflight?.promise === promise) this.inflight = void 0;
+      });
+    }
+    return this.inflight.promise;
+  }
+  async fetchModel(generation) {
+    const t = Date.now();
     const active = (await this.contexts()).find((c) => c.active);
     if (!active) return void 0;
     const [nodes, memory] = await Promise.all([
@@ -7855,7 +7882,10 @@ var EditorBackend = class {
     ]);
     if (!nodes) return void 0;
     this.serialized = { id: active.id, nodes };
-    return buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+    const model = buildModel(active, nodes, memory, new SourceCache(this.h.docs.read));
+    this.cached = { generation, id: active.id, model };
+    log(`model ${active.names[0] ?? active.id}: ${Object.keys(model.nodes).length} nodes in ${Date.now() - t} ms`);
+    return model;
   }
   async setActive(id) {
     await this.h.server.request("devicetree/setActive", { id });
@@ -7875,7 +7905,7 @@ var EditorBackend = class {
     if (!active || !active.overlays.includes((0, import_node_path2.resolve)(req.overlay))) {
       return { applied: false, error: "target is not a user overlay of the active context" };
     }
-    if (this.serialized?.id !== active.id || !this.serialized.nodes[req.nodePath]) await this.model();
+    if (this.cached?.generation !== this.generation || this.serialized?.id !== active.id) await this.model();
     const node = this.serialized?.nodes[req.nodePath];
     if (!node) return { applied: false, error: `node ${req.nodePath} not found` };
     const edit = planEdit(node, req, new SourceCache(this.h.docs.read));
@@ -8131,15 +8161,14 @@ var Proxy2 = class {
   constructor(zed, server) {
     this.zed = zed;
     this.server = server;
-    this.ui = new UiServer(
-      new EditorBackend({
-        zed,
-        server,
-        docs: this.docs,
-        external: () => this.external,
-        canShowDocument: () => this.canShowDocument
-      })
-    );
+    this.backend = new EditorBackend({
+      zed,
+      server,
+      docs: this.docs,
+      external: () => this.external,
+      canShowDocument: () => this.canShowDocument
+    });
+    this.ui = new UiServer(this.backend);
   }
   root;
   ws;
@@ -8159,9 +8188,14 @@ var Proxy2 = class {
   docs = new DocumentStore();
   canShowDocument = false;
   ui;
+  backend;
   uiTimer;
-  /** Debounced "model may have changed" for open editor pages. */
-  uiChanged(reason, delay = 500) {
+  /**
+   * Debounced "model may have changed" for open editor pages. Typing waits
+   * longer: every rebuild costs a full serializedContext in dts-lsp.
+   */
+  uiChanged(reason, delay = reason === "didChange" ? 1500 : 500) {
+    this.backend.invalidate();
     clearTimeout(this.uiTimer);
     this.uiTimer = setTimeout(() => this.ui.changed(reason), delay);
   }
@@ -8353,19 +8387,87 @@ function rootOf(params) {
 }
 
 // src/bindings/lsp.ts
-var import_node_fs9 = require("node:fs");
-var import_node_path7 = require("node:path");
+var import_node_fs10 = require("node:fs");
 var import_node_url6 = require("node:url");
 var import_yaml4 = __toESM(require_dist(), 1);
 
+// src/bindings/compatibles.ts
+var import_node_fs7 = require("node:fs");
+var import_node_path5 = require("node:path");
+var SKIP_DIRS = /^(\.|node_modules$|build|twister|__pycache__$)/;
+var DTS_FILE = /\.(dts|dtsi|overlay|dtso)$/;
+function* walkDts(dir, depth = 0) {
+  if (depth > 12) return;
+  let entries;
+  try {
+    entries = (0, import_node_fs7.readdirSync)(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (e.isDirectory()) {
+      if (!SKIP_DIRS.test(e.name)) yield* walkDts((0, import_node_path5.join)(dir, e.name), depth + 1);
+    } else if (DTS_FILE.test(e.name)) yield (0, import_node_path5.join)(dir, e.name);
+  }
+}
+function scanCompatibles(file, text) {
+  const uses = /* @__PURE__ */ new Map();
+  text.split(/\r?\n/).forEach((line, i) => {
+    if (!/\bcompatible\s*=/.test(line)) return;
+    for (const m of line.matchAll(/"([^"]+)"/g)) {
+      const start = m.index;
+      const list = uses.get(m[1]) ?? [];
+      list.push({ file, line: i, start, end: start + m[0].length });
+      uses.set(m[1], list);
+    }
+  });
+  return uses;
+}
+var CompatibleIndex = class {
+  constructor(roots) {
+    this.roots = roots;
+  }
+  files = /* @__PURE__ */ new Map();
+  /** Walks the roots (cheap), re-reads changed files only. */
+  refresh() {
+    const seen = /* @__PURE__ */ new Set();
+    let reread = 0;
+    for (const root of this.roots) {
+      for (const file of walkDts(root)) {
+        if (seen.has(file)) continue;
+        seen.add(file);
+        let mtimeMs;
+        try {
+          mtimeMs = (0, import_node_fs7.statSync)(file).mtimeMs;
+        } catch {
+          continue;
+        }
+        if (this.files.get(file)?.mtimeMs === mtimeMs) continue;
+        reread++;
+        let text = "";
+        try {
+          text = (0, import_node_fs7.readFileSync)(file, "utf8");
+        } catch {
+        }
+        this.files.set(file, { mtimeMs, uses: scanCompatibles(file, text) });
+      }
+    }
+    for (const file of this.files.keys()) if (!seen.has(file)) this.files.delete(file);
+    return { files: seen.size, reread };
+  }
+  find(compatible) {
+    return [...this.files.values()].flatMap((e) => e.uses.get(compatible) ?? []);
+  }
+};
+
 // src/bindings/binding.ts
-var import_node_fs8 = require("node:fs");
-var import_node_path6 = require("node:path");
+var import_node_fs9 = require("node:fs");
+var import_node_path7 = require("node:path");
 var import_yaml3 = __toESM(require_dist(), 1);
 
 // src/bindings/rules.ts
-var import_node_fs7 = require("node:fs");
-var import_node_path5 = require("node:path");
+var import_node_fs8 = require("node:fs");
+var import_node_path6 = require("node:path");
 var FALLBACK = {
   topKeys: ["title", "description", "compatible", "bus", "on-bus", "class", "properties", "child-binding", "examples"],
   propKeys: [
@@ -8404,8 +8506,8 @@ function pySet(src, name) {
   return items.length ? items : void 0;
 }
 function loadRules(zephyrBase) {
-  const file = zephyrBase && (0, import_node_path5.join)(zephyrBase, "scripts", "dts", "python-devicetree", "src", "devicetree", "edtlib.py");
-  const src = file && (0, import_node_fs7.existsSync)(file) ? (0, import_node_fs7.readFileSync)(file, "utf8") : "";
+  const file = zephyrBase && (0, import_node_path6.join)(zephyrBase, "scripts", "dts", "python-devicetree", "src", "devicetree", "edtlib.py");
+  const src = file && (0, import_node_fs8.existsSync)(file) ? (0, import_node_fs8.readFileSync)(file, "utf8") : "";
   const top = pySet(src, "ok_top");
   const prop = pySet(src, "ok_prop_keys");
   const types = pySet(src, "ok_types");
@@ -8431,12 +8533,12 @@ var BindingIndex = class {
   scan(dir) {
     let entries;
     try {
-      entries = (0, import_node_fs8.readdirSync)(dir, { withFileTypes: true });
+      entries = (0, import_node_fs9.readdirSync)(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
-      const path = (0, import_node_path6.join)(dir, e.name);
+      const path = (0, import_node_path7.join)(dir, e.name);
       if (e.isDirectory()) this.scan(path);
       else if (/\.ya?ml$/.test(e.name)) {
         if (!this.byName.has(e.name)) this.byName.set(e.name, path);
@@ -8451,7 +8553,7 @@ var BindingIndex = class {
 };
 function safeRead(file) {
   try {
-    return (0, import_node_fs8.readFileSync)(file, "utf8");
+    return (0, import_node_fs9.readFileSync)(file, "utf8");
   } catch {
     return "";
   }
@@ -8601,7 +8703,6 @@ var zero = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
 
 // src/bindings/lsp.ts
 var log3 = (...args) => console.error("[bindings]", ...args);
-var SKIP_DIRS = /^(\.|node_modules$|build|twister|__pycache__$)/;
 var BindingsServer = class {
   constructor(client) {
     this.client = client;
@@ -8611,6 +8712,7 @@ var BindingsServer = class {
   rules = loadRules();
   docs = /* @__PURE__ */ new Map();
   ready = Promise.resolve();
+  compatibles;
   handle(msg) {
     if (this.client.settle(msg)) return;
     const reply = (result) => msg.id !== void 0 && this.client.send({ id: msg.id, result });
@@ -8673,7 +8775,7 @@ var BindingsServer = class {
     if (!uri.startsWith("file:")) return void 0;
     const file = (0, import_node_url6.fileURLToPath)(uri);
     if (!this.index.isBindingFile(file)) return void 0;
-    const text = this.docs.get(uri) ?? (0, import_node_fs9.readFileSync)(file, "utf8");
+    const text = this.docs.get(uri) ?? (0, import_node_fs10.readFileSync)(file, "utf8");
     return { file, text, a: analyze(file, text, this.index, this.rules) };
   }
   publish(uri) {
@@ -8691,7 +8793,7 @@ var BindingsServer = class {
     if (t.kind === "include") {
       const path = this.index.byName.get(t.name);
       if (!path) return null;
-      const description = String((0, import_yaml4.parseDocument)((0, import_node_fs9.readFileSync)(path, "utf8")).toJSON()?.description ?? "").trim();
+      const description = String((0, import_yaml4.parseDocument)((0, import_node_fs10.readFileSync)(path, "utf8")).toJSON()?.description ?? "").trim();
       const props = [...resolveProperties([{ name: t.name, range: t.range }], this.index).values()];
       return md(
         `**${t.name}**  
@@ -8729,7 +8831,7 @@ ${description ?? ""}
     if (t.kind === "property") {
       const base = r.inherited.get(t.name);
       if (!base) return null;
-      const line = (0, import_node_fs9.readFileSync)(base.file, "utf8").split(/\r?\n/).findIndex((l) => new RegExp(`^\\s+${escape(t.name)}:`).test(l));
+      const line = (0, import_node_fs10.readFileSync)(base.file, "utf8").split(/\r?\n/).findIndex((l) => new RegExp(`^\\s+${escape(t.name)}:`).test(l));
       return location(base.file, Math.max(line, 0), 0);
     }
     return null;
@@ -8739,23 +8841,15 @@ ${description ?? ""}
     const r = this.analysis(uri);
     const t = r?.a.at(pos);
     if (!r || t?.kind !== "compatible" || !this.ws) return null;
-    const needle = `"${t.value}"`;
-    const out = [];
-    const roots = [this.ws.topdir, ...this.ws.zephyrBase && !this.ws.zephyrBase.startsWith(this.ws.topdir) ? [this.ws.zephyrBase] : []];
-    for (const file of roots.flatMap((root) => [...walkDts(root)])) {
-      let text;
-      try {
-        text = (0, import_node_fs9.readFileSync)(file, "utf8");
-      } catch {
-        continue;
-      }
-      if (!text.includes(needle)) continue;
-      text.split(/\r?\n/).forEach((line, i) => {
-        const c = line.indexOf(needle);
-        if (c >= 0 && /compatible/.test(line)) out.push(location(file, i, c, c + needle.length));
-      });
+    if (!this.compatibles) {
+      const ws = this.ws;
+      const outside = ws.zephyrBase && !ws.zephyrBase.startsWith(ws.topdir) ? [ws.zephyrBase] : [];
+      this.compatibles = new CompatibleIndex([ws.topdir, ...outside]);
     }
-    return out;
+    const t0 = Date.now();
+    const stats = this.compatibles.refresh();
+    log3(`references ${t.value}: ${stats.files} dts files, ${stats.reread} re-read, ${Date.now() - t0} ms`);
+    return this.compatibles.find(t.value).map((u) => location(u.file, u.line, u.start, u.end));
   }
   completion(uri, pos) {
     const r = this.analysis(uri);
@@ -8790,20 +8884,6 @@ ${description ?? ""}
     return false;
   }
 };
-function* walkDts(dir, depth = 0) {
-  if (depth > 12) return;
-  let entries;
-  try {
-    entries = (0, import_node_fs9.readdirSync)(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e.isDirectory()) {
-      if (!SKIP_DIRS.test(e.name)) yield* walkDts((0, import_node_path7.join)(dir, e.name), depth + 1);
-    } else if (/\.(dts|dtsi|overlay|dtso)$/.test(e.name)) yield (0, import_node_path7.join)(dir, e.name);
-  }
-}
 var escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 var md = (value, range) => ({ contents: { kind: "markdown", value }, range });
 var location = (file, line, start, end = start) => ({

@@ -4,18 +4,17 @@
 // to its built-in YAML language; it answers only for files in a bindings
 // directory and stays silent elsewhere, next to yaml-language-server.
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseDocument } from "yaml";
 import { Peer, type Message } from "../jsonrpc.js";
 import { loadWorkspace, type WestWorkspace } from "../west.js";
 import { discoverBuilds, restrictedDefaults, workspaceModules } from "../zephyr.js";
+import { CompatibleIndex } from "./compatibles.js";
 import { analyze, BindingIndex, resolveProperties, type Pos } from "./binding.js";
 import { loadRules, type BindingRules } from "./rules.js";
 
 const log = (...args: unknown[]) => console.error("[bindings]", ...args);
-const SKIP_DIRS = /^(\.|node_modules$|build|twister|__pycache__$)/;
 
 export class BindingsServer {
   private ws?: WestWorkspace;
@@ -23,6 +22,7 @@ export class BindingsServer {
   private rules: BindingRules = loadRules();
   private docs = new Map<string, string>();
   private ready: Promise<void> = Promise.resolve();
+  private compatibles?: CompatibleIndex;
 
   constructor(private readonly client: Peer) {}
 
@@ -159,23 +159,15 @@ export class BindingsServer {
     const r = this.analysis(uri);
     const t = r?.a.at(pos);
     if (!r || t?.kind !== "compatible" || !this.ws) return null;
-    const needle = `"${t.value}"`;
-    const out: unknown[] = [];
-    const roots = [this.ws.topdir, ...(this.ws.zephyrBase && !this.ws.zephyrBase.startsWith(this.ws.topdir) ? [this.ws.zephyrBase] : [])];
-    for (const file of roots.flatMap((root) => [...walkDts(root)])) {
-      let text: string;
-      try {
-        text = readFileSync(file, "utf8");
-      } catch {
-        continue;
-      }
-      if (!text.includes(needle)) continue;
-      text.split(/\r?\n/).forEach((line, i) => {
-        const c = line.indexOf(needle);
-        if (c >= 0 && /compatible/.test(line)) out.push(location(file, i, c, c + needle.length));
-      });
+    if (!this.compatibles) {
+      const ws = this.ws;
+      const outside = ws.zephyrBase && !ws.zephyrBase.startsWith(ws.topdir) ? [ws.zephyrBase] : [];
+      this.compatibles = new CompatibleIndex([ws.topdir, ...outside]);
     }
-    return out;
+    const t0 = Date.now();
+    const stats = this.compatibles.refresh();
+    log(`references ${t.value}: ${stats.files} dts files, ${stats.reread} re-read, ${Date.now() - t0} ms`);
+    return this.compatibles.find(t.value).map((u) => location(u.file, u.line, u.start, u.end));
   }
 
   private completion(uri: string, pos: Pos) {
@@ -212,21 +204,6 @@ export class BindingsServer {
       if (/^\S/.test(lines[i]!)) return /^properties:/.test(lines[i]!);
     }
     return false;
-  }
-}
-
-function* walkDts(dir: string, depth = 0): Generator<string> {
-  if (depth > 12) return;
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e.isDirectory()) {
-      if (!SKIP_DIRS.test(e.name)) yield* walkDts(join(dir, e.name), depth + 1);
-    } else if (/\.(dts|dtsi|overlay|dtso)$/.test(e.name)) yield join(dir, e.name);
   }
 }
 
