@@ -1,0 +1,14 @@
+name = "Zephyr Devicetree"
+grammar = "devicetree"
+path_suffixes = ["dts", "dtsi", "dtso", "overlay"]
+line_comments = ["// "]
+block_comment = ["/* ", " */"]
+tab_size = 8
+hard_tabs = true
+brackets = [
+    { start = "{", end = "}", close = true, newline = true },
+    { start = "[", end = "]", close = true, newline = false },
+    { start = "(", end = ")", close = true, newline = false },
+    { start = "<", end = ">", close = true, newline = false, not_in = ["string", "comment"] },
+    { start = "\"", end = "\"", close = true, newline = false, not_in = ["string", "comment"] },
+]

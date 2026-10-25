@@ -1,0 +1,19 @@
+id = "zephyr-devicetree"
+name = "Zephyr Devicetree"
+version = "0.0.1"
+schema_version = 1
+description = "Zephyr Devicetree support: syntax highlighting, devicetree-language-server, build-aware contexts"
+# TODO: set before publishing
+# repository = ""
+authors = ["petrovichkr"]
+
+[grammars.devicetree]
+repository = "https://github.com/joelspadin/tree-sitter-devicetree"
+rev = "e78bf56f206cb47bee28a217423acb651e076848"
+
+[language_servers.devicetree-language-server]
+name = "Devicetree Language Server"
+languages = ["Zephyr Devicetree"]
+
+[language_servers.devicetree-language-server.language_ids]
+"Zephyr Devicetree" = "devicetree"

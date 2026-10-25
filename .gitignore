@@ -1,0 +1,13 @@
+# Rust / Zed extension build output
+/target/
+*.wasm
+/grammars/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Claude Code local settings
+.claude/settings.local.json
