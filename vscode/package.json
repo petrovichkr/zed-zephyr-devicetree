@@ -2,8 +2,13 @@
   "name": "zephyr-devicetree",
   "displayName": "Zephyr Devicetree",
   "description": "Zephyr devicetree for every board: devicetree-language-server, build-aware contexts, a visual editor and binding YAML support",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "petrovichkr",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e3a8a",
+    "theme": "dark"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

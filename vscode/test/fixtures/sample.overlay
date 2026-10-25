@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Constructs the TextMate grammar must handle; see test/grammar.mjs. */
+#include <zephyr/dt-bindings/gpio/gpio.h>
+/ {
+	aliases { led0 = &led_0; };
+	leds: leds {
+		compatible = "gpio-leds";
+		led_0: led@0 {
+			gpios = <&gpio0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			#address-cells = <1>;
+			reg = <0x40000000 DT_SIZE_K(4)>;
+		};
+	};
+};
+&{/soc/i2c@40003000} { status = "okay"; /delete-property/ clock-frequency; };
+/delete-node/ &uart1;

@@ -15,6 +15,8 @@ const server = join(root, "node_modules", "devicetree-language-server");
 
 if (!existsSync(companion)) throw new Error(`${companion} is missing: run "npm run build" in companion/`);
 mkdirSync(dist, { recursive: true });
+// one changelog for both editors; vsce wants it next to package.json
+cpSync(join(root, "..", "CHANGELOG.md"), join(root, "CHANGELOG.md"));
 cpSync(companion, join(dist, "companion.cjs"));
 rmSync(join(dist, "dts-lsp"), { recursive: true, force: true });
 for (const f of ["package.json", "dist", "meta-schemas", "LICENSE", "README.md"]) {

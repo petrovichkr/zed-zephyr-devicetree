@@ -1,7 +1,7 @@
 {
   "name": "zephyr-devicetree-companion",
-  "version": "0.0.1",
-  "description": "LSP proxy in front of devicetree-language-server: Zephyr workspace and build discovery for Zed",
+  "version": "0.1.0",
+  "description": "LSP proxy in front of devicetree-language-server: Zephyr workspace and build discovery, binding YAML server and visual editor for Zed and VS Code",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",

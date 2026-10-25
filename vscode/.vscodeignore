@@ -8,3 +8,6 @@
 !dist/companion.cjs
 !dist/dts-lsp/**
 !schemas/**
+!images/icon.png
+!THIRD_PARTY_NOTICES.md
+!CHANGELOG.md

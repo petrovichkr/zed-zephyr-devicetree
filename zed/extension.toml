@@ -1,6 +1,6 @@
 id = "zephyr-devicetree"
 name = "Zephyr Devicetree"
-version = "0.0.1"
+version = "0.1.0"
 schema_version = 1
 description = "Zephyr Devicetree support: syntax highlighting, devicetree-language-server, build-aware contexts"
 repository = "https://github.com/petrovichkr/zed-zephyr-devicetree"

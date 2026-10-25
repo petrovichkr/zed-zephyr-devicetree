@@ -19,6 +19,7 @@
 # VS Code wrapper: dist/ is generated (companion copy, dts-lsp, bundle, .vsix)
 /vscode/node_modules/
 /vscode/dist/
+/vscode/CHANGELOG.md
 
 # Private notes: their own repository (design notes)
 /private/
