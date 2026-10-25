@@ -5,13 +5,14 @@
 // on the outer edges the pins each block uses. Drawn by hand in SVG (D29).
 
 import type { UiModel } from "../src/ui/model.js";
-import type { UiOverviewGroup, UiPeripheral } from "../src/ui/overview.js";
+import type { UiIndicator, UiOverviewGroup, UiPeripheral } from "../src/ui/overview.js";
 import { h } from "./dom.js";
+import { flagsText, flagTags, keyGlyph, ledGlyph } from "./glyphs.js";
 import { basename, humanSize } from "./format.js";
 import { applyEdit, canEdit, rerender, select, showPin, state } from "./state.js";
 import { clip, s } from "./svg.js";
 
-const PIN_W = 64; // pin labels
+const PIN_W = 72; // pin labels
 const LEAD = 22; // pin lead to the block
 const BLOCK_W = 190;
 const BUS = 34; // block -> trunk -> SoC
@@ -26,7 +27,71 @@ const SOC_X = LEFT_BLOCK + BLOCK_W + BUS;
 const RIGHT_BLOCK = SOC_X + SOC_W + BUS;
 const WIDTH = RIGHT_BLOCK + BLOCK_W + LEAD + PIN_W;
 
-const blockH = (b: UiPeripheral) => Math.max(34, b.pins.length * PIN_ROW + 12);
+const ITEM_ROW = 18;
+const ITEM_TOP = 34; // below the block title
+const blockH = (b: UiPeripheral) => (b.items ? ITEM_TOP + b.items.length * ITEM_ROW + 4 : Math.max(34, b.pins.length * PIN_ROW + 12));
+
+/** `50000` ns -> `50 µs`; macros stay as written. */
+function period(p: string): string {
+  if (!/^\d+$/.test(p)) return p;
+  const ns = Number(p);
+  return ns >= 1e6 ? `${ns / 1e6} ms` : ns >= 1e3 ? `${ns / 1e3} µs` : `${ns} ns`;
+}
+
+/** Pin label on the outer edge: an expander pin keeps its line number when clipped. */
+const pinLabel = (pin: string, via?: string) => (via && pin.length > 11 ? `${clip(via, 8)}.${pin.slice(via.length + 1)}` : pin);
+
+/** One LED/key row: lead to the pin on the outer edge, glyph, name, code or PWM channel. */
+function itemRow(m: UiModel, b: UiPeripheral, it: UiIndicator, bx: number, y: number, side: "left" | "right", out: SVGElement[]): void {
+  const outer = side === "left" ? bx : bx + BLOCK_W;
+  const off = b.disabled || it.disabled ? " off" : "";
+  const err = it.conflict ? " error" : "";
+  const ext = it.via ? " ext" : "";
+  const low = !!it.flags?.activeLow;
+  const extra = it.kind === "key" ? (it.code ?? "") : it.pwm ? `CH${it.pwm.channel} · ${period(it.pwm.period)}` : "";
+  const tags = flagTags(it.flags);
+  // about 21 mono characters fit next to the glyph: the right column wins, the name is clipped
+  const right = clip(extra || it.aliases[0] || "", 12);
+  const name = clip(it.name, Math.max(6, 21 - right.length - (tags ? tags.length + 1 : 0) - 1));
+  const title = [
+    `${it.path}${it.aliases.length ? ` (alias ${it.aliases.join(", ")})` : ""}`,
+    it.pin ? `${it.pin}${it.via ? ` via the external GPIO controller ${it.via}` : ""}` : it.pwm ? "PWM channel pin unknown" : "no pin",
+    flagsText(it.flags),
+    it.pwm ? `PWM ${it.pwm.controller} channel ${it.pwm.channel}, period ${period(it.pwm.period)}, ${it.pwm.inverted ? "inverted" : "normal"} polarity` : it.code ? `code ${it.code}` : "",
+    "click: select",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  out.push(
+    s(
+      "g",
+      { class: `item${off}${state.selected === it.path ? " selected" : ""}`, onclick: () => select(it.path) },
+      s("title", {}, title),
+      s("rect", { class: "item-bg", x: bx + 4, y: y - ITEM_ROW / 2, width: BLOCK_W - 8, height: ITEM_ROW, rx: 3 }),
+      it.kind === "key" ? keyGlyph(bx + 9, y + 1, low) : ledGlyph(bx + 9, y + 1, low, it.pwm),
+      s(
+        "svg",
+        { x: bx + 44, y: y - ITEM_ROW / 2, width: BLOCK_W - 50, height: ITEM_ROW, overflow: "hidden" },
+        s("text", { x: 0, y: ITEM_ROW / 2 + 4, class: `t3${low ? " overline" : ""}` }, name),
+        tags ? s("text", { x: name.length * 6.7 + 4, y: ITEM_ROW / 2 + 4, class: "t2" }, tags) : null,
+        right ? s("text", { x: BLOCK_W - 52, y: ITEM_ROW / 2 + 4, class: "t2", "text-anchor": "end" }, right) : null,
+      ),
+    ),
+  );
+  if (!it.pin) return;
+  const lead = side === "left" ? [outer - LEAD, outer] : [outer, outer + LEAD];
+  out.push(s("line", { class: `lead${ext}${off}${err}`, x1: lead[0], y1: y, x2: lead[1], y2: y }));
+  // inversion bubble where the line leaves the block
+  if (low) out.push(s("circle", { class: `bubble${off}`, cx: side === "left" ? outer - 3 : outer + 3, cy: y, r: 2.5 }));
+  out.push(
+    s(
+      "text",
+      { x: side === "left" ? outer - LEAD - 4 : outer + LEAD + 4, y: y + 4, "text-anchor": side === "left" ? "end" : "start", class: `pin${ext}${off}${err}`, onclick: () => showPin(it.pin!) },
+      s("title", {}, `${it.pin} ${it.name}${it.via ? `\nvia the external GPIO controller ${it.via}: not a SoC pin` : ""}\nclick: show in Pins tab`),
+      pinLabel(it.pin, it.via),
+    ),
+  );
+}
 const groupH = (g: UiOverviewGroup) => GROUP_HEAD + g.blocks.reduce((n, b) => n + blockH(b) + GAP, 0);
 
 /** Splits groups into two columns of similar height, keeping their order. */
@@ -103,7 +168,8 @@ function column(m: UiModel, groups: UiOverviewGroup[], side: "left" | "right", o
           s("circle", { cx: sx, cy: y + 11, r: 5 }),
         ),
       );
-      b.pins.forEach((p, i) => {
+      b.items?.forEach((it, i) => itemRow(m, b, it, bx, y + ITEM_TOP + i * ITEM_ROW + ITEM_ROW / 2 - 4, side, out));
+      if (!b.items) b.pins.forEach((p, i) => {
         const py = y + 12 + i * PIN_ROW + PIN_ROW / 2 - 2;
         const lead = side === "left" ? [outer - LEAD, outer] : [outer, outer + LEAD];
         const fn = p.owner === b.path ? p.function : `${m.nodes[p.owner]?.name ?? p.owner}: ${p.function ?? ""}`;
@@ -121,7 +187,7 @@ function column(m: UiModel, groups: UiOverviewGroup[], side: "left" | "right", o
               onclick: () => showPin(p.pin),
             },
             s("title", {}, `${p.pin} ${fn ?? ""}${via}${p.conflict ? "\nconflict: used by more than one enabled owner" : ""}\nclick: show in Pins tab`),
-            p.via ? `${clip(p.via, 6)}.${p.pin.slice(p.via.length + 1)}` : p.pin,
+            pinLabel(p.pin, p.via),
           ),
         );
       });

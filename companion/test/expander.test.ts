@@ -32,11 +32,17 @@ const bindings: Record<string, UiBinding> = {
   pca9555: b("gpio", { props: [{ name: "ngpios", type: "U32", required: false, const: 16 }] }),
   leds: b("led"),
   keys: b("input"),
+  pwm: b("pwm"),
 };
 
 const tree = [
-  node("/", { children: ["/soc", "/leds", "/keys"] }),
-  node("/soc", { children: ["/soc/gpio@0", "/soc/i2c@1"] }),
+  node("/", { children: ["/aliases", "/soc", "/leds", "/keys", "/backlight"] }),
+  node("/aliases", { p: { sw0: "&user_btn", led0: '"/leds/led_0"' } }),
+  node("/soc", { children: ["/soc/gpio@0", "/soc/i2c@1", "/soc/ledc@2"] }),
+  node("/soc/ledc@2", { labels: ["ledc0"], compatible: ["espressif,esp32-ledc"], binding: "pwm", p: { "pinctrl-0": "<&ledc0_default>", "pinctrl-names": '"default"' } }),
+  node("/pinctrl/ledc0_default", { labels: ["ledc0_default"], p: { pinmux: "<LEDC_CH0_GPIO23 LEDC_CH1_GPIO24>" } }),
+  node("/backlight", { compatible: ["pwm-leds"], binding: "leds", children: ["/backlight/bl"] }),
+  node("/backlight/bl", { p: { pwms: "<&ledc0 1 50000 PWM_POLARITY_INVERTED>" } }),
   node("/soc/gpio@0", { labels: ["gpio0"], compatible: ["espressif,esp32-gpio"], binding: "gpio", p: { "gpio-controller": "" } }),
   node("/soc/i2c@1", { labels: ["i2c0"], compatible: ["espressif,esp32-i2c"], binding: "i2c", children: ["/soc/i2c@1/gpio@20"] }),
   node("/soc/i2c@1/gpio@20", {
@@ -49,7 +55,7 @@ const tree = [
   node("/leds/led_0", { p: { gpios: "<&gpio_exp0 3 GPIO_ACTIVE_LOW>", label: '"Status"' } }),
   node("/keys", { compatible: ["gpio-keys"], binding: "keys", children: ["/keys/btn_0"] }),
   // referenced by the second label: still the gpio_exp0 port
-  node("/keys/btn_0", { p: { gpios: "<&exp0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>", "zephyr,code": "<INPUT_KEY_0>" } }),
+  node("/keys/btn_0", { labels: ["user_btn"], p: { gpios: "<&exp0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>", "zephyr,code": "<INPUT_KEY_0>" } }),
 ];
 const nodes = Object.fromEntries(tree.map((n) => [n.path, n]));
 
@@ -99,5 +105,15 @@ describe("external GPIO controller", () => {
     expect(blocks.find((x) => x.path === "/soc/i2c@1")!.pins).toEqual([
       { pin: "GPIO13", function: "GPIO", owner: "/soc/i2c@1/gpio@20", property: "int-gpios", conflict: false, via: undefined },
     ]);
+  });
+
+  it("lists LEDs and keys with their pin, flags, code, aliases and PWM channel", () => {
+    const o = buildOverview(nodes, bindings, pins, buildBuses(nodes, bindings, pins), catalog);
+    const items = (path: string) => o.groups.flatMap((g) => g.blocks).find((x) => x.path === path)!.items;
+    expect(items("/leds")).toEqual([
+      { path: "/leds/led_0", kind: "led", name: "Status", disabled: false, aliases: ["led0"], pin: "gpio_exp0.3", via: "gpio_exp0", flags: { activeLow: true, extra: [] }, conflict: false },
+    ]);
+    expect(items("/keys")).toMatchObject([{ kind: "key", name: "btn_0", aliases: ["sw0"], code: "INPUT_KEY_0", flags: { activeLow: true, pull: "up" } }]);
+    expect(items("/backlight")).toMatchObject([{ kind: "pwm-led", pin: "GPIO24", pwm: { controller: "ledc0", channel: "1", period: "50000", inverted: true } }]);
   });
 });

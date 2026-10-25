@@ -12,7 +12,7 @@
 import { cellNumber, type UiBus } from "./buses.js";
 import type { UiBinding, UiNode } from "./model.js";
 import type { UiPinCatalog } from "./pinfunctions.js";
-import type { UiPinMap } from "./pins.js";
+import { cells, type UiGpioFlags, type UiPinMap } from "./pins.js";
 
 export interface UiOverviewPin {
   pin: string;
@@ -26,6 +26,26 @@ export interface UiOverviewPin {
   via?: string;
 }
 
+/** One LED or key of a gpio-leds / gpio-keys / pwm-leds node. */
+export interface UiIndicator {
+  path: string;
+  kind: "led" | "key" | "pwm-led";
+  /** `label` property, else the node name. */
+  name: string;
+  disabled: boolean;
+  /** aliases pointing at the node: led0, sw0. */
+  aliases: string[];
+  pin?: string;
+  /** External GPIO controller the pin belongs to. */
+  via?: string;
+  flags?: UiGpioFlags;
+  conflict: boolean;
+  /** gpio-keys: `zephyr,code` as written (INPUT_KEY_0). */
+  code?: string;
+  /** pwm-leds: `<&ledc0 0 50000 PWM_POLARITY_NORMAL>`; pin from the controller's pinctrl channel. */
+  pwm?: { controller: string; channel: string; period: string; inverted: boolean };
+}
+
 export interface UiPeripheral {
   path: string;
   class: string;
@@ -33,6 +53,8 @@ export interface UiPeripheral {
   pins: UiOverviewPin[];
   /** Devices on this bus controller. */
   devices: number;
+  /** gpio-leds, gpio-keys and pwm-leds: one entry per child. */
+  items?: UiIndicator[];
 }
 
 export interface UiOverviewGroup {
@@ -67,6 +89,16 @@ const MEMORY = new Set(["base", "sram"]);
 export const bindingClass = (file: string | undefined): string => /[\\/]dts[\\/]bindings[\\/]([^\\/]+)[\\/]/.exec(file ?? "")?.[1] ?? "";
 
 const shortCompat = (c: string) => c.split(",").pop() ?? c;
+
+/** Pin of a PWM channel from the controller's default pinctrl: LEDC_CH0_GPIO23, tim3_ch1_pa6, PWM_OUT0. */
+function pwmPin(nodes: Record<string, UiNode>, pins: UiPinMap, ctrl: UiNode | undefined, channel: string): string | undefined {
+  if (!ctrl || !/^\d+$/.test(channel)) return undefined;
+  // STM32 pwm nodes sit under the timer; its pinctrl may be on either
+  const owners = new Set([ctrl.path, ...Object.values(nodes).filter((n) => n.children.includes(ctrl.path)).map((n) => n.path)]);
+  const used = pins.usages.filter((u) => owners.has(u.owner) && (u.state ?? "default") === "default");
+  const ch = used.filter((u) => Number(/(?:CH|OUT)_?(\d+)/i.exec(u.function ?? "")?.[1]) === Number(channel));
+  return ch.length === 1 ? ch[0]!.pin : undefined;
+}
 
 export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, pins: UiPinMap, buses: UiBus[], catalog?: UiPinCatalog): UiOverview {
   const external = new Map<string, string>();
@@ -107,6 +139,48 @@ export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<st
     const block = p && blocks.get(p);
     if (!block || block.pins.some((x) => x.pin === u.pin && x.owner === u.owner)) continue;
     block.pins.push({ pin: u.pin, function: u.function, owner: u.owner, property: u.property, conflict: conflicts.has(u.pin), via: external.get(u.pin) });
+  }
+
+  // LEDs and keys
+  const byLabel = new Map<string, UiNode>();
+  for (const n of Object.values(nodes)) for (const l of n.labels) byLabel.set(l, n);
+  const aliases = new Map<string, string[]>();
+  for (const p of nodes["/aliases"]?.props ?? []) {
+    const v = p.value.trim();
+    const target = v.startsWith("&") ? byLabel.get(v.slice(1))?.path : v.replace(/^"|"$/g, "");
+    if (target) aliases.set(target, [...(aliases.get(target) ?? []), p.name]);
+  }
+  const KIND: Record<string, UiIndicator["kind"]> = { "gpio-leds": "led", "gpio-keys": "key", "pwm-leds": "pwm-led" };
+  for (const b of blocks.values()) {
+    const n = nodes[b.path]!;
+    const kind = n.compatible.map((c) => KIND[c]).find(Boolean);
+    if (!kind) continue;
+    b.items = n.children
+      .map((c) => nodes[c])
+      .filter((c): c is UiNode => !!c)
+      .map((c) => {
+        const prop = (name: string) => c.props.find((p) => p.name === name)?.value;
+        const u = pins.usages.find((x) => x.owner === c.path && x.property === "gpios" && !x.index);
+        const item: UiIndicator = {
+          path: c.path,
+          kind,
+          name: prop("label")?.replace(/^"|"$/g, "") || c.name,
+          disabled: c.disabled || n.disabled,
+          aliases: aliases.get(c.path) ?? [],
+          pin: u?.pin,
+          via: u && external.get(u.pin),
+          flags: u?.gpioFlags,
+          conflict: !!u && conflicts.has(u.pin),
+          code: prop("zephyr,code")?.replace(/^<|>$/g, "").trim(),
+        };
+        const pwm = cells(prop("pwms") ?? "");
+        if (pwm[0]?.startsWith("&")) {
+          const ctrl = pwm[0].slice(1);
+          item.pwm = { controller: ctrl, channel: pwm[1] ?? "", period: pwm[2] ?? "", inverted: /INVERTED|^1$/.test(pwm[3] ?? "") };
+          item.pin = pwmPin(nodes, pins, byLabel.get(ctrl), pwm[1] ?? "");
+        }
+        return item;
+      });
   }
 
   const groups = new Map<string, UiPeripheral[]>();

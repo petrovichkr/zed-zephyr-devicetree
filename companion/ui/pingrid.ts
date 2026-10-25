@@ -11,6 +11,7 @@ import type { UiPort } from "../src/ui/pinfunctions.js";
 import type { UiPinUsage } from "../src/ui/pins.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { flagBadges } from "./glyphs.js";
 import { basename, locText, locTitle } from "./format.js";
 import { usageText } from "./pins.js";
 import { applyChange, canEdit, openLoc, rerender, select, state } from "./state.js";
@@ -58,6 +59,15 @@ function fnClass(fn: string | undefined): string {
   if (/tim|pwm|ledc|rmt|mcpwm|pcnt/.test(f)) return "c-timer";
   if (/usb|eth|sdmmc|sdio|i2s|sai/.test(f)) return "c-fast";
   return "c-other";
+}
+
+/** What a GPIO is for: LED, KEY, or the property without -gpios (reset, int, cs). */
+export function gpioRole(m: UiModel, u: UiPinUsage): string | undefined {
+  if (u.function !== "GPIO") return u.function;
+  const parent = m.nodes[u.owner.slice(0, u.owner.lastIndexOf("/")) || "/"];
+  if (u.property === "gpios" && parent?.compatible.includes("gpio-leds")) return "LED";
+  if (u.property === "gpios" && parent?.compatible.includes("gpio-keys")) return "KEY";
+  return u.property === "gpios" ? "GPIO" : u.property.replace(/-gpios$/, "");
 }
 
 const clipLabel = (s: string): string => (s.length > 9 ? `${s.slice(0, 8)}…` : s);
@@ -178,8 +188,8 @@ function cell(m: UiModel, pin: string, conflicts: Set<string>, byPin: Map<string
         if (u) void move(m, u, pin);
       },
     },
-    h("span", { class: "pnum" }, shortPin(pin)),
-    h("span", { class: "pfn" }, main?.function ? main.function.slice(0, 9) : ""),
+    h("span", { class: "ptop" }, h("span", { class: "pnum" }, shortPin(pin)), main?.gpioFlags ? flagBadges(main.gpioFlags, true) : null),
+    h("span", { class: "pfn" }, main?.function ? (gpioRole(m, main) ?? "").slice(0, 9) : ""),
   );
 }
 
@@ -204,7 +214,8 @@ function panel(m: UiModel): HTMLElement {
       "li",
       { class: u.disabled ? "muted" : "" },
       h("span", { class: `swatch ${fnClass(u.function)}` }),
-      h("span", { class: "mono" }, u.function ?? "?"),
+      h("span", { class: "mono" }, gpioRole(m, u) ?? "?"),
+      flagBadges(u.gpioFlags),
       " ",
       h("button", { class: "link", onclick: () => select(u.owner) }, m.nodes[u.owner]?.name ?? u.owner),
       h("span", { class: "muted" }, ` ${usageText(u)}${u.disabled ? ", disabled" : ""} `),
@@ -306,7 +317,7 @@ function panel(m: UiModel): HTMLElement {
             ),
           ]
         : h("div", { class: "muted" }, m.pinCatalog.vendor === "esp32" && !m.pinCatalog.source ? "The SoC pinctrl header was not found, functions are unknown." : "No pinctrl function can use this pin."),
-    m.pinCatalog.source ? h("div", { class: "muted source" }, "Functions from ", h("button", { class: "link mono", onclick: () => void openLoc({ file: m.pinCatalog.source!, line: 0, character: 0 }) }, basename(m.pinCatalog.source))) : null,
+    m.pinCatalog.source && !ext ? h("div", { class: "muted source" }, "Functions from ", h("button", { class: "link mono", onclick: () => void openLoc({ file: m.pinCatalog.source!, line: 0, character: 0 }) }, basename(m.pinCatalog.source))) : null,
   );
 }
 
@@ -363,6 +374,10 @@ export function renderPinGrid(m: UiModel): HTMLElement {
           ["c-other", "other"],
         ].map(([c, t]) => h("span", null, h("span", { class: `swatch ${c}` }), t)),
         h("span", null, h("span", { class: "swatch conflict-sw" }), "conflict"),
+        h("span", null, h("span", { class: "flag" }, "○"), " active low"),
+        h("span", null, h("span", { class: "flag" }, "↑"), h("span", { class: "flag" }, "↓"), " pull up/down"),
+        h("span", null, h("span", { class: "flag" }, "OD"), h("span", { class: "flag" }, "OS"), " open drain/source"),
+        m.pinCatalog.ports.some((p) => p.external) ? h("span", null, h("span", { class: "swatch ext-sw" }), "external GPIO controller") : null,
         h("span", { class: "muted" }, canEdit() ? "drag a used pin to move its function" : "editing is disabled"),
       ),
     ),

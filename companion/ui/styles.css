@@ -204,6 +204,8 @@ main.buses-split { grid-template-columns: minmax(420px, 58%) 1fr; }
 .bus-svg { display: block; font: 12px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
 .bus-svg rect { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
 .bus-svg g { cursor: pointer; }
+.bus-svg .gpio-badge { fill: var(--accent); font-family: var(--mono); font-size: 10.5px; cursor: pointer; }
+.bus-svg .gpio-badge:hover { text-decoration: underline; }
 .bus-svg g:hover rect { fill: var(--hover); }
 .bus-svg g.selected rect { fill: var(--sel); stroke: var(--accent); }
 .bus-svg .ctrl rect { stroke: var(--accent); }
@@ -262,7 +264,19 @@ main.overview-split { grid-template-columns: minmax(480px, 66%) 1fr; }
 .ov-svg .pin { fill: var(--fg); font-family: var(--mono); font-size: 11px; }
 .ov-svg .pin:hover { fill: var(--accent); text-decoration: underline; }
 .ov-svg .lead.ext { stroke-dasharray: 3 2; }
-.ov-svg .pin.ext { fill: var(--muted); font-style: italic; }
+.ov-svg .pin.ext { fill: var(--muted); font-style: italic; font-size: 9.5px; }
+.ov-svg .glyph { fill: none; stroke: var(--fg); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.ov-svg .glyph .rail { stroke: var(--muted); }
+.ov-svg .glyph .light { stroke: var(--warn); }
+.ov-svg .item { cursor: pointer; }
+.ov-svg rect.item-bg { fill: transparent; stroke: none; }
+.ov-svg .item:hover rect.item-bg { fill: var(--hover); }
+.ov-svg .item.selected rect.item-bg { fill: var(--sel); }
+.ov-svg .item.off .glyph, .ov-svg .item.off text { opacity: 0.5; }
+.ov-svg .bubble { fill: var(--bg); stroke: var(--fg); stroke-width: 1.1; }
+.ov-svg .overline { text-decoration: overline; }
+.flags { display: inline-flex; gap: 2px; margin-left: 4px; vertical-align: 1px; }
+.flag { font-family: var(--mono); font-size: 10px; line-height: 12px; padding: 0 3px; border: 1px solid var(--border); border-radius: 3px; color: var(--muted); }
 .ov-svg .pin.off { fill: var(--muted); }
 .ov-svg .pin.error { fill: var(--danger); font-weight: 600; }
 .ov-svg .switch circle { fill: var(--ok); stroke: var(--bg); stroke-width: 1.5; }
@@ -375,3 +389,9 @@ main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
 .mem-svg g.gap.can-add:hover rect { fill: var(--hover); stroke: var(--accent); }
 .mem-svg g.gap.ram { cursor: pointer; }
 .mem-svg g.gap.ram rect { fill: var(--code); stroke-dasharray: none; }
+.pcell .ptop { display: flex; align-items: center; gap: 2px; width: 100%; }
+.pcell .flags { margin-left: auto; gap: 1px; }
+.pcell .flag { font-size: 8.5px; line-height: 10px; padding: 0 2px; }
+.legend .flag { margin-right: 2px; }
+.swatch.ext-sw { background: none; border: 1px dashed var(--muted); }
+.gpio-flags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; font-size: 11px; }

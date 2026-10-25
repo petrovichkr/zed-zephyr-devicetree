@@ -26,6 +26,17 @@ const speedText = (b: UiBus): string =>
 
 const title = (n: UiNode | undefined, path: string): string => (n ? `${n.labels[0] ? `${n.labels[0]}: ` : ""}${n.name}` : path);
 
+/** Expander on the bus: its port, used lines and interrupt pin. */
+function gpioController(m: UiModel, path: string) {
+  const port = m.pinCatalog.ports.find((p) => p.external?.path === path);
+  if (!port) return undefined;
+  const lines = new Set(port.pins);
+  const users = m.pins.usages.filter((u) => lines.has(u.pin) && !u.disabled);
+  const used = [...new Set(users.map((u) => u.pin.slice(port.name.length + 1)))];
+  const int = m.pins.usages.find((u) => u.owner === path && /^(n?int|interrupt|irq)-gpios$/.test(u.property))?.pin;
+  return { port, used, int, first: users[0]?.pin ?? port.pins[0]! };
+}
+
 /** Text on the link to a device: address or chip select, then pin / frequency. */
 function linkText(bus: UiBus, d: UiBusDevice): [string, string] {
   if (d.link !== "child") return [d.property ?? "", d.link === "chosen" ? "chosen" : "phandle"];
@@ -84,6 +95,7 @@ function diagram(m: UiModel, bus: UiBus): SVGSVGElement {
     const off = d.disabled || bus.disabled;
     const sev = severityOf(bus.issues, d.path);
     const [top, bottom] = linkText(bus, d);
+    const gpio = gpioController(m, d.path);
     const sub = d.link === "child" ? (n?.compatible[0] ?? "") : `${d.property} = ${n?.props.find((p) => p.name === d.property)?.value ?? ""}`;
     svg.append(
       s("line", { class: `wire${off ? " off" : ""}${d.link !== "child" ? " ref" : ""}${sev ? ` ${sev}` : ""}`, x1: TRUNK, y1: y, x2: DEV_X, y2: y }),
@@ -96,9 +108,20 @@ function diagram(m: UiModel, bus: UiBus): SVGSVGElement {
         s("title", {}, `${d.path}${d.disabled ? "\ndisabled" : bus.disabled ? "\nbus disabled" : ""}\nclick to select`),
         s("rect", { x: DEV_X, y: y - BOX / 2, width: DEV_W, height: BOX, rx: 5 }),
         s("text", { x: DEV_X + 10, y: y - 3, class: "t1" }, clip(title(n, d.path), 40)),
-        s("text", { x: DEV_X + 10, y: y + 12, class: "t2" }, clip(sub, 44)),
+        s("text", { x: DEV_X + 10, y: y + 12, class: "t2" }, clip(sub, gpio ? 26 : 44)),
       ),
     );
+    if (gpio) {
+      // an expander: its lines live in the Pins tab
+      svg.append(
+        s(
+          "text",
+          { x: DEV_X + DEV_W - 8, y: y + 12, "text-anchor": "end", class: "gpio-badge", onclick: () => showPin(gpio.first) },
+          s("title", {}, `GPIO controller ${gpio.port.name}: ${gpio.port.pins.length} lines, ${gpio.used.length} used${gpio.used.length ? ` (${gpio.used.join(", ")})` : ""}${gpio.int ? `\ninterrupt line ${gpio.int}` : ""}\nclick: show in Pins tab`),
+          `GPIO ×${gpio.port.pins.length} · ${gpio.used.length} used${gpio.int ? ` · INT ${gpio.int}` : ""}`,
+        ),
+      );
+    }
   });
   return svg;
 }

@@ -3,6 +3,7 @@
 import type { Loc, UiBinding, UiBindingProp, UiModel, UiNode, UiProp } from "../src/ui/model.js";
 import { h } from "./dom.js";
 import { basename, cells, enumValue, locText, locTitle, quote } from "./format.js";
+import { flagBadges } from "./glyphs.js";
 import { busSection } from "./buses.js";
 import { usageText } from "./pins.js";
 import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, showPin, state } from "./state.js";
@@ -75,6 +76,18 @@ function valueEditor(node: UiNode, p: UiProp): HTMLElement {
   );
 }
 
+/** Flag badges of every entry of a `*-gpios` property, with the pin each entry uses. */
+function gpioFlagBadges(node: UiNode, p: UiProp): HTMLElement | null {
+  if (!/(^|-)gpios$/.test(p.name) || !state.model) return null;
+  const us = state.model.pins.usages.filter((u) => u.owner === node.path && u.property === p.name && u.gpioFlags);
+  if (!us.length) return null;
+  return h(
+    "div",
+    { class: "gpio-flags" },
+    us.map((u) => h("span", null, h("button", { class: "link mono", onclick: () => showPin(u.pin) }, u.pin), flagBadges(u.gpioFlags) ?? h("span", { class: "muted" }, " active high"))),
+  );
+}
+
 function propRow(node: UiNode, p: UiProp, bp: UiBindingProp | undefined): HTMLElement[] {
   const editing = state.editing?.prop === p.name;
   const n = p.overridden.length;
@@ -102,6 +115,7 @@ function propRow(node: UiNode, p: UiProp, bp: UiBindingProp | undefined): HTMLEl
         "td",
         { class: "pvalue" },
         editing ? valueEditor(node, p) : p.value === "" ? h("span", { class: "muted" }, "(true)") : h("code", null, p.value),
+        editing ? null : gpioFlagBadges(node, p),
       ),
       h("td", { class: "porigin" }, locLink(p.origin), overrides),
       h(
