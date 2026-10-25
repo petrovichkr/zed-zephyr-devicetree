@@ -15,7 +15,7 @@ import { editableFlags } from "./flagedit.js";
 import { flagBadges } from "./glyphs.js";
 import { basename, locText, locTitle } from "./format.js";
 import { usageText } from "./pins.js";
-import { applyChange, canEdit, openLoc, rerender, select, state } from "./state.js";
+import { applyChange, applyEdit, canEdit, openLoc, rerender, select, state } from "./state.js";
 
 const isDefault = (u: UiPinUsage) => (u.state ?? "default") === "default";
 const active = (u: UiPinUsage) => !u.disabled && isDefault(u);
@@ -83,6 +83,33 @@ export function gpioRole(m: UiModel, u: UiPinUsage): string | undefined {
   if (u.property === "gpios" && parent?.compatible.includes("gpio-leds")) return "LED";
   if (u.property === "gpios" && parent?.compatible.includes("gpio-keys")) return "KEY";
   return u.property === "gpios" ? "GPIO" : u.property.replace(/-gpios$/, "");
+}
+
+/** No enabled GPIO controller: offer to enable the disabled ones. */
+function emptyPorts(m: UiModel): HTMLElement {
+  const off = Object.values(m.nodes).filter((n) => n.disabled && n.props.some((p) => p.name === "gpio-controller"));
+  return h(
+    "div",
+    { class: "empty" },
+    h("div", null, off.length ? "All GPIO controllers are disabled in this context." : "No GPIO controllers in this context."),
+    off.length
+      ? h(
+          "div",
+          { class: "enable-ports" },
+          off.map((n) =>
+            h(
+              "button",
+              {
+                disabled: !canEdit(),
+                title: canEdit() ? `Write status = "okay" to ${basename(state.overlay)}` : "Editing is disabled",
+                onclick: () => void applyEdit(n.path, "status", '"okay"'),
+              },
+              `Enable ${n.labels[0] ?? n.name}`,
+            ),
+          ),
+        )
+      : null,
+  );
 }
 
 /** Why a used pin has no cell in the grid. */
@@ -393,7 +420,7 @@ export function renderPinGrid(m: UiModel): HTMLElement {
     h(
       "div",
       { class: "pin-grid", "data-scroll": "pin-grid" },
-      rows.length ? rows : h("div", { class: "empty" }, "No GPIO controllers in this context"),
+      rows.length ? rows : emptyPorts(m),
       outside.length
         ? h(
             "div",
