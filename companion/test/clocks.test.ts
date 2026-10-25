@@ -126,3 +126,32 @@ describe("ESP32 clock view", () => {
     ]);
   });
 });
+
+describe("WCH CH32 clock tree", () => {
+  const tree = (mul: string, cpu: string) => {
+    const nodes = [
+      node("/soc", { compatible: ["wch,ch32v203c8t6", "wch,ch32v203", "simple-bus"], labels: [] }),
+      node("/cpus/cpu@0", { labels: ["cpu0"], p: { "clock-frequency": cpu } }),
+      node("/clocks/clk-hse", { compatible: ["wch,ch32v00x-hse-clock"], p: { "clock-frequency": "<DT_FREQ_M(8)>" } }),
+      node("/clocks/pll", { compatible: ["wch,ch32v20x_30x-pll-clock"], p: { mul, clocks: "<&clk_hse>" } }),
+      node("/soc/rcc@40021000", { labels: ["rcc"], compatible: ["wch,rcc"], p: { clocks: "<&pll>" } }),
+      node("/soc/uart@40004800", { labels: ["usart3"], p: { clocks: "<&rcc CH32V20X_V30X_CLOCK_USART3>" } }),
+      node("/soc/gpio@40010800", { labels: ["gpioa"], p: { clocks: "<&rcc CH32V20X_V30X_CLOCK_IOPA>" } }),
+    ];
+    return buildClocks(Object.fromEntries(nodes.map((n) => [n.path, n])))!;
+  };
+
+  it("computes SYSCLK from the PLL multiplier and checks the CPU frequency", () => {
+    const c = tree("<18>", "<DT_FREQ_M(144)>");
+    expect([c.family, c.part, hz(c, "pll"), hz(c, "sysclk"), c.declaredNode, c.issues]).toEqual(["wch", "wch,ch32v203", 144 * MHZ, 144 * MHZ, "/cpus/cpu@0", []]);
+    const parent = (id: string) => c.edges.find((e) => e.to === id)?.from;
+    expect([parent("/soc/uart@40004800"), parent("/soc/gpio@40010800")]).toEqual(["apb1", "apb2"]);
+  });
+
+  it("flags an overclocked SYSCLK and a stale CPU clock-frequency", () => {
+    expect(tree("<20>", "<DT_FREQ_M(144)>").issues.map((i) => i.message)).toEqual([
+      "SYSCLK 160 MHz is above the 144 MHz maximum",
+      "cpu clock-frequency 144 MHz does not match the computed SYSCLK 160 MHz",
+    ]);
+  });
+});

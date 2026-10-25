@@ -150,11 +150,11 @@ async function applyDraft(m: UiModel, live: UiClocks): Promise<void> {
     const [nodePath, property] = k.split("\0") as [string, string];
     return { nodePath, property, value: value === "" ? true : value };
   });
-  // keep STM32_HCLK_FREQUENCY in step with the new tree
-  const rcc = live.nodes.find((n) => n.id === "ahb")?.path;
-  if (live.calculated && rcc && live.hclk !== undefined && Math.round(live.hclk) !== live.declared) {
+  // keep STM32_HCLK_FREQUENCY (rcc) or the WCH CPU clock-frequency in step with the new tree
+  const target = live.declaredNode;
+  if (live.calculated && target && live.hclk !== undefined && Math.round(live.hclk) !== live.declared) {
     const f = Math.round(live.hclk);
-    edits.push({ nodePath: rcc, property: "clock-frequency", value: f % 1_000_000 === 0 ? `<DT_FREQ_M(${f / 1_000_000})>` : `<${f}>` });
+    edits.push({ nodePath: target, property: "clock-frequency", value: f % 1_000_000 === 0 ? `<DT_FREQ_M(${f / 1_000_000})>` : `<${f}>` });
   }
   const errors = live.issues.filter((i) => i.severity === "error");
   if (errors.length && !confirm(`The new clock tree has ${errors.length} error(s):\n${errors.map((e) => `• ${e.message}`).join("\n")}\n\nWrite it anyway?`)) return;
@@ -171,7 +171,11 @@ function panel(m: UiModel, live: UiClocks): HTMLElement {
     { class: "clk-panel", "data-scroll": "clk-panel" },
     h("h2", null, live.part ?? "Clocks", h("span", { class: "badge" }, live.family === "esp32" ? "view only" : live.calculated ? live.family?.toUpperCase() : "no model")),
     live.hclk !== undefined
-      ? h("div", { class: live.declared !== undefined && Math.round(live.hclk) !== live.declared ? "error-text" : "muted" }, `HCLK ${mhz(live.hclk)}${live.declared !== undefined ? `, rcc clock-frequency ${mhz(live.declared)}` : ""}`)
+      ? h(
+          "div",
+          { class: live.declared !== undefined && Math.round(live.hclk) !== live.declared ? "error-text" : "muted" },
+          `HCLK ${mhz(live.hclk)}${live.declared !== undefined ? `, ${live.family === "wch" ? "cpu" : "rcc"} clock-frequency ${mhz(live.declared)}` : ""}`,
+        )
       : null,
     live.issues.length
       ? h("ul", { class: "clk-issues" }, live.issues.map((i) => h("li", { class: i.severity === "error" ? "error-text" : "warn-text" }, i.severity === "error" ? "✖ " : "⚠ ", i.message)))

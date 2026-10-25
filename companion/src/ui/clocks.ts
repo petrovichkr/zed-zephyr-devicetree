@@ -4,6 +4,8 @@
 // -> peripherals, with frequencies computed from the devicetree and checked
 // against the limits of the part. Families with a model: F4, L4, F1, F0 (the
 // ones the user has); any other STM32 gets the same graph without calculation.
+// WCH CH32 (V00x/V10x/V20x/V30x): sources -> PLL (`mul`) -> SYSCLK; the Zephyr
+// driver leaves AHB and APB undivided, the CPU clock-frequency must match SYSCLK.
 // ESP32 gets a read-only view: crystal -> CPU clock source -> cores -> APB
 // (80 MHz on the SoCs where it is fixed) -> peripherals with a clock module.
 // Pure code: the browser runs it too, to recompute while divisors are edited.
@@ -56,16 +58,18 @@ export interface UiClockIssue {
 }
 
 export interface UiClocks {
-  family?: "f4" | "l4" | "f1" | "f0" | "stm32" | "esp32";
+  family?: "f4" | "l4" | "f1" | "f0" | "stm32" | "esp32" | "wch";
   /** SoC compatible, `st,stm32f405`. */
   part?: string;
   calculated: boolean;
   nodes: UiClockNode[];
   edges: UiClockEdge[];
   issues: UiClockIssue[];
-  /** HCLK computed and as declared in rcc clock-frequency. */
+  /** HCLK computed and as declared in rcc clock-frequency (STM32) or the CPU node (WCH). */
   hclk?: number;
   declared?: number;
+  /** Node whose clock-frequency holds `declared`; Apply keeps it in step. */
+  declaredNode?: string;
 }
 
 interface Limits {
@@ -122,6 +126,7 @@ export function clockBus(value: string): string | undefined {
 export function buildClocks(nodes: Record<string, UiNode>): UiClocks | undefined {
   const all = Object.values(nodes);
   if (all.some((n) => n.compatible.includes("espressif,esp32-clock"))) return esp32Clocks(all);
+  if (all.some((n) => n.compatible.includes("wch,rcc"))) return wchClocks(all);
   const part = all.flatMap((n) => n.compatible).find((c) => /^st,stm32[a-z]\d/.test(c) && !/-/.test(c.slice(9)));
   const rcc = all.find((n) => n.compatible.some((c) => /^st,stm32\w*-rcc$/.test(c)));
   if (!part || !rcc) return undefined;
@@ -247,6 +252,7 @@ export function buildClocks(nodes: Record<string, UiNode>): UiClocks | undefined
   if (sysSrc === "pll" && pll?.disabled) err("SYSCLK comes from the PLL, but the PLL is disabled", "sysclk");
   out.hclk = ahb;
   out.declared = num(rcc, "clock-frequency");
+  out.declaredNode = rcc.path;
   if (lim && ahb !== undefined && out.declared !== undefined && Math.round(ahb) !== out.declared) {
     err(`rcc clock-frequency ${mhz(out.declared)} does not match the computed HCLK ${mhz(ahb)}`, "ahb");
   }
@@ -315,5 +321,91 @@ function esp32Clocks(all: UiNode[]): UiClocks {
     out.nodes.push({ id: n.path, column: 6, label: n.labels[0] ?? n.name, sub: mod, path: n.path });
     out.edges.push({ from: "apb", to: n.path });
   }
+  return out;
+}
+
+// SYSCLK maximum per line (WCH datasheets: CH32V003/V00x 48 MHz, CH32V103 80 MHz,
+// CH32V20x/V30x 144 MHz); other lines (CH32H41x, CH57x) are drawn without limits
+function wchLimit(part: string): number | undefined {
+  if (/^wch,ch32v00/.test(part)) return 48 * M;
+  if (/^wch,ch32v10/.test(part)) return 80 * M;
+  if (/^wch,ch32v[23]0/.test(part)) return 144 * M;
+  return undefined;
+}
+
+/** Bus of a WCH peripheral clock, by name (the PCENR layout follows STM32F1). */
+function wchBus(clock: string): "ahb_bus" | "apb1" | "apb2" {
+  if (/_(DMA\d*|SRAM|FLITF|CRC|FSMC|RNG|SDIO|USBHS|OTG\w*|DVP|ETH\w*|BLE\w*|USBFS)$/.test(clock)) return "ahb_bus";
+  if (/_(AFIO|IOP[A-Z]|ADC\d*|TIM(1|8|9|10)|SPI1|USART1)$/.test(clock)) return "apb2";
+  return "apb1";
+}
+
+function wchClocks(all: UiNode[]): UiClocks {
+  const part = all.flatMap((n) => n.compatible).find((c) => /^wch,ch32[a-z]\d+\w*$/.test(c)) ?? "wch";
+  const max = wchLimit(part);
+  const out: UiClocks = { family: "wch", part, calculated: max !== undefined, nodes: [], edges: [], issues: [] };
+  const byLabel = new Map(all.flatMap((n) => n.labels.map((l) => [l, n] as const)));
+  const rcc = all.find((n) => n.compatible.includes("wch,rcc"))!;
+  const hz = new Map<string, number | undefined>();
+  const sources = ["clk_hse", "clk_hsi", "clk_lse", "clk_lsi"].filter((l) => byLabel.has(l));
+  for (const l of sources) {
+    const n = byLabel.get(l)!;
+    const f = num(n, "clock-frequency");
+    hz.set(l, n.disabled ? undefined : f);
+    const params: UiClockParam[] = l === "clk_hse" ? [{ node: n.path, property: "clock-frequency", value: f, kind: "int" }] : [];
+    out.nodes.push({ id: l, column: 0, label: l.replace(/^clk_/, "").toUpperCase(), path: n.path, hz: f, disabled: n.disabled, params });
+  }
+
+  const pll = byLabel.get("pll");
+  let pllOut: number | undefined;
+  if (pll) {
+    const src = ref(pll);
+    const fixed = pll.compatible.some((c) => /ch32v00x-pll/.test(c)); // V00x: always ×2
+    const mul = fixed ? 2 : num(pll, "mul");
+    pllOut = src && hz.get(src) && mul ? hz.get(src)! * mul : undefined;
+    const params: UiClockParam[] = [{ node: pll.path, property: "clocks", kind: "source", options: sources.filter((s) => /hse|hsi/.test(s)) }];
+    if (!fixed) params.push({ node: pll.path, property: "mul", value: mul, kind: "int", options: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18] });
+    out.nodes.push({ id: "pll", column: 1, label: "PLL", path: pll.path, hz: pllOut, disabled: pll.disabled, params });
+    if (src) out.edges.push({ from: src, to: "pll", label: `×${mul ?? "?"}` });
+    if (src === "clk_hsi" && !fixed && !pll.disabled) {
+      out.issues.push({ severity: "warning", message: "PLL from HSI: the chip may halve HSI first (EXTEN_CTR.HSIPRE), which the devicetree does not show", node: "pll" });
+    }
+  }
+
+  const sysSrc = ref(rcc);
+  const sysclk = sysSrc === "pll" ? pllOut : sysSrc ? hz.get(sysSrc) : undefined;
+  out.nodes.push({ id: "sysclk", column: 3, label: "SYSCLK", path: rcc.path, hz: sysclk, params: [{ node: rcc.path, property: "clocks", kind: "source", options: ["pll", ...sources.filter((s) => /hse|hsi/.test(s))] }] });
+  if (sysSrc) out.edges.push({ from: sysSrc, to: "sysclk" });
+  // the Zephyr driver sets HPRE = /1 and leaves PPRE1/PPRE2 at their reset value /1
+  out.nodes.push({ id: "ahb", column: 4, label: "HCLK", path: rcc.path, hz: sysclk });
+  out.edges.push({ from: "sysclk", to: "ahb", label: "/1" });
+  for (const [id, label] of [["ahb_bus", "AHB"], ["apb1", "APB1"], ["apb2", "APB2"]] as const) {
+    out.nodes.push({ id, column: 5, label, hz: sysclk });
+    out.edges.push({ from: "ahb", to: id });
+  }
+  const cpu = all.find((n) => /^\/cpus\/cpu@/.test(n.path));
+  out.hclk = sysclk;
+  out.declared = num(cpu, "clock-frequency");
+  out.declaredNode = cpu?.path;
+  if (max && sysclk !== undefined && sysclk > max) out.issues.push({ severity: "error", message: `SYSCLK ${mhz(sysclk)} is above the ${mhz(max)} maximum`, node: "sysclk" });
+  if (sysSrc && byLabel.get(sysSrc)?.disabled) out.issues.push({ severity: "error", message: `SYSCLK source ${sysSrc} is disabled`, node: "sysclk" });
+  if (sysclk !== undefined && out.declared !== undefined && Math.round(sysclk) !== out.declared) {
+    out.issues.push({ severity: "error", message: `cpu clock-frequency ${mhz(out.declared)} does not match the computed SYSCLK ${mhz(sysclk)}`, node: "sysclk" });
+  }
+
+  for (const n of all) {
+    if (n.disabled || n === rcc) continue;
+    const v = n.props.find((p) => p.name === "clocks")?.value ?? "";
+    const clock = /&rcc\s+(CH32\w+_CLOCK_\w+)/.exec(v)?.[1];
+    if (!clock) continue;
+    const bus = wchBus(clock);
+    out.nodes.push({ id: n.path, column: 6, label: n.labels[0] ?? n.name, sub: clock.replace(/^CH32\w+_CLOCK_/, ""), path: n.path, hz: sysclk });
+    out.edges.push({ from: bus, to: n.path });
+  }
+  const busOrder = ["ahb_bus", "apb1", "apb2"];
+  const parentOf = new Map(out.edges.map((e) => [e.to, e.from]));
+  const rank = (n: UiClockNode) => (n.column === 6 ? busOrder.indexOf(parentOf.get(n.id) ?? "") : -1);
+  out.nodes.sort((a, b) => a.column - b.column || rank(a) - rank(b) || (a.column === 6 ? a.label.localeCompare(b.label) : 0));
+  for (const node of out.nodes) node.error = out.issues.find((i) => i.node === node.id && i.severity === "error")?.message;
   return out;
 }
