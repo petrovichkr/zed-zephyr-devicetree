@@ -102,18 +102,28 @@ function pwmPin(nodes: Record<string, UiNode>, pins: UiPinMap, ctrl: UiNode | un
   return ch.length === 1 ? ch[0]!.pin : undefined;
 }
 
-/** Pin of an ADC channel: STM32 pinctrl `adc1_in0_pa0`, ESP32-S3 fixed map (ADC1 CHn = GPIOn+1, ADC2 CHn = GPIOn+11). */
-function adcPin(nodes: Record<string, UiNode>, pins: UiPinMap, adc: UiNode, soc: string[], ch: number): string | undefined {
+/** Pin of an ADC channel: STM32 pinctrl `adc1_in0_pa0`, ESP32 HAL table, else the ESP32-S3 map (ADC1 CHn = GPIOn+1, ADC2 CHn = GPIOn+11). */
+function adcPin(nodes: Record<string, UiNode>, pins: UiPinMap, adc: UiNode, soc: string[], ch: number, table?: Record<string, string>): string | undefined {
   const viaPinctrl = pins.usages.find((u) => u.owner === adc.path && (u.state ?? "default") === "default" && Number(/_in_?(\d+)/i.exec(u.function ?? "")?.[1]) === ch);
   if (viaPinctrl) return viaPinctrl.pin;
+  const unit = Number(cells(adc.props.find((p) => p.name === "unit")?.value ?? "")[0] ?? 1);
+  if (table) return table[`${unit}:${ch}`];
+  // no HAL in the workspace: the ESP32-S3 map is known
   if (soc.some((c) => /esp32s3/.test(c))) {
-    const unit = Number(cells(adc.props.find((p) => p.name === "unit")?.value ?? "")[0] ?? 1);
     if (ch >= 0 && ch < 10) return `GPIO${ch + (unit === 2 ? 11 : 1)}`;
   }
   return undefined;
 }
 
-export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<string, UiBinding>, pins: UiPinMap, buses: UiBus[], catalog?: UiPinCatalog): UiOverview {
+export function buildOverview(
+  nodes: Record<string, UiNode>,
+  bindings: Record<string, UiBinding>,
+  pins: UiPinMap,
+  buses: UiBus[],
+  catalog?: UiPinCatalog,
+  /** ESP32: `<unit>:<channel>` -> pin, from the HAL's adc_channel.h. */
+  adcPins?: Record<string, string>,
+): UiOverview {
   const external = new Map<string, string>();
   for (const port of catalog?.ports ?? []) if (port.external) for (const p of port.pins) external.set(p, port.name);
   const parent = new Map<string, string>();
@@ -215,7 +225,7 @@ export function buildOverview(nodes: Record<string, UiNode>, bindings: Record<st
     if (!chans.length) continue;
     b.items = chans.map((c) => {
       const ch = cellNumber(cells(c.props.find((p) => p.name === "reg")?.value ?? "")[0] ?? "") ?? Number(/@(\w+)$/.exec(c.name)?.[1]);
-      const pin = adcPin(nodes, pins, n, soc, ch);
+      const pin = adcPin(nodes, pins, n, soc, ch, adcPins);
       return {
         path: c.path,
         kind: "adc",

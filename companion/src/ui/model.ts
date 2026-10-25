@@ -6,7 +6,7 @@
 // written. This module is the contract with the browser app (see UiModel).
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBuses, type UiBus } from "./buses.js";
 import { buildClocks, type UiClocks } from "./clocks.js";
@@ -199,6 +199,30 @@ function pinctrlHeader(nodes: Record<string, UiNode>, src: SourceCache, includeP
   return undefined;
 }
 
+/**
+ * ESP32 ADC channel -> GPIO from the Espressif HAL of the workspace:
+ * `#define ADC1_CHANNEL_0_GPIO_NUM 16` in components/soc/<soc>/include/soc/adc_channel.h.
+ * The SoC is the one the board's pinctrl header names (esp32p4-pinctrl.h). Keys: `<unit>:<channel>`.
+ */
+export function esp32AdcPins(header: string | undefined, includePaths: string[], read: (f: string) => string = (f) => readFileSync(f, "utf8")): Record<string, string> | undefined {
+  const soc = /(esp32\w*?)-pinctrl\.h$/.exec(header ?? "")?.[1];
+  if (!soc) return undefined;
+  const rel = join("components", "soc", soc, "include", "soc", "adc_channel.h");
+  const seen = new Set<string>();
+  for (const start of includePaths) {
+    for (let dir = start, i = 0; i < 6 && !seen.has(dir); i++, dir = dirname(dir)) {
+      seen.add(dir);
+      for (const file of [join(dir, "modules", "hal", "espressif", rel), join(dir, "hal", "espressif", rel), join(dir, rel)]) {
+        if (!existsSync(file)) continue;
+        const out: Record<string, string> = {};
+        for (const m of read(file).matchAll(/^\s*#define\s+ADC(\d)_CHANNEL_(\d+)_GPIO_NUM\s+(\d+)/gm)) out[`${m[1]}:${m[2]}`] = `GPIO${m[3]}`;
+        return out;
+      }
+    }
+  }
+  return undefined;
+}
+
 export function buildModel(
   context: UiContext,
   serialized: Record<string, any>,
@@ -258,7 +282,9 @@ export function buildModel(
   }
   const pins = buildPinMap(nodes);
   const buses = buildBuses(nodes, bindings, pins);
-  const pinCatalog = buildPinCatalog(nodes, pinctrlHeader(nodes, src, includePaths), pins.usages.map((u) => u.pin), bindings);
+  const header = pinctrlHeader(nodes, src, includePaths);
+  const pinCatalog = buildPinCatalog(nodes, header, pins.usages.map((u) => u.pin), bindings);
+  const adcPins = esp32AdcPins(header?.file, includePaths);
   return {
     context,
     root: "/",
@@ -267,7 +293,7 @@ export function buildModel(
     pins,
     pinCatalog,
     buses,
-    overview: buildOverview(nodes, bindings, pins, buses, pinCatalog),
+    overview: buildOverview(nodes, bindings, pins, buses, pinCatalog, adcPins),
     clocks: buildClocks(nodes),
     interrupts: buildInterrupts(nodes, bindings),
     memoryMap: buildMemoryMap(nodes),
