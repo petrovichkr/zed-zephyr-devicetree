@@ -6,6 +6,7 @@
 //   STM32  pinctrl-N of the owner: `&usart1_tx_pa9` -> `&usart1_tx_pb6` (HAL node)
 //   ESP32  pinmux of the pinctrl group: `UART0_TX_GPIO43` -> `UART0_TX_GPIO5`
 //   nRF    psels of the pinctrl group: `NRF_PSEL(UART_TX, 0, 6)` -> `NRF_PSEL(UART_TX, 1, 2)`
+//   WCH    pinmux of the pinctrl group: `USART3_TX_PB10_0` -> the header macro for the new pin
 //   GPIO   `*-gpios` of the owner: `&gpio0 15 FLAGS` -> `&gpio1 2 FLAGS`
 // Every pinctrl state of the owner that routes the function to the old pin
 // (default, sleep, ...) moves along.
@@ -70,6 +71,26 @@ function gpioOf(catalog: UiPinCatalog, pin: string): { label: string; n: number 
   return undefined;
 }
 
+/** WCH remaps a whole peripheral at once: `USART3_TX_PC10_1` -> ["USART3", "1"]. */
+const wchRemap = (macro: string): [string, string] | undefined => {
+  const m = /^([A-Z0-9]+)_\w*?_P[A-K]\d+_((?:AF)?\d+)$/.exec(macro);
+  return m ? [m[1]!, m[2]!] : undefined;
+};
+
+/** Error when `macro` uses another remap than the owner's other signals of the same peripheral. */
+function wchRemapClash(model: UiModel, owner: string, macro: string, except?: string): string | undefined {
+  const mine = wchRemap(macro);
+  if (!mine || mine[1].startsWith("AF")) return undefined; // AF-style SoCs route pins one by one
+  for (const u of model.pins.usages) {
+    if (u.owner !== owner || !u.cell || u.cell === except) continue;
+    const other = wchRemap(u.cell);
+    if (other && other[0] === mine[0] && other[1] !== mine[1]) {
+      return `${macro} needs ${mine[0]} remap ${mine[1]}, but ${u.cell} on ${u.pin} uses remap ${other[1]}: a remap moves all ${mine[0]} signals, move them together`;
+    }
+  }
+  return undefined;
+}
+
 export function allowedPins(catalog: UiPinCatalog, fn: string): string[] {
   if (fn === "GPIO" || catalog.anyPin) return catalog.ports.flatMap((p) => p.pins);
   return catalog.functions[fn] ?? [];
@@ -123,15 +144,21 @@ export function planPinMove(model: UiModel, req: PinMoveRequest): PinMovePlan {
       return undefined;
     }
     if (u.source && u.cell) {
-      const esp = /^(\w+?)_GPIO(\d+)$/.exec(u.cell);
+      const wch = catalog.vendor === "wch" && /_P[A-K]\d+_(?:AF)?\d+$/.test(u.cell);
+      const esp = !wch && /^(\w+?)_GPIO(\d+)$/.exec(u.cell);
       const nrf = /^NRF_PSEL(?:_DISCONNECTED)?\(\s*(\w+)\s*,/.exec(u.cell);
       let next: string | undefined;
-      if (esp) next = `${esp[1]}_GPIO${/^GPIO(\d+)$/.exec(req.to)?.[1]}`;
+      if (wch) {
+        next = catalog.labels[`${req.function}@${req.to}`];
+        const clash = next && wchRemapClash(model, req.owner, next, u.cell);
+        if (clash) return clash;
+      }
+      else if (esp) next = `${esp[1]}_GPIO${/^GPIO(\d+)$/.exec(req.to)?.[1]}`;
       else if (nrf) {
         const m = /^P(\d+)\.(\d+)$/.exec(req.to);
         if (m) next = `NRF_PSEL(${nrf[1]}, ${Number(m[1])}, ${Number(m[2])})`;
       }
-      const property = esp ? "pinmux" : "psels";
+      const property = esp || wch ? "pinmux" : "psels";
       const c = current(u.source, property);
       const value = next && c && replaceCell(c.value, u.cell, next);
       if (!value) return `cannot rewrite ${u.cell} for ${req.to}`;
@@ -207,12 +234,19 @@ export function planPinAssign(model: UiModel, req: PinAssignRequest): PinMovePla
 
   let cell: string;
   if (catalog.vendor === "esp32") cell = `${req.function}_GPIO${/^GPIO(\d+)$/.exec(req.pin)?.[1]}`;
+  else if (catalog.vendor === "wch") {
+    const macro = catalog.labels[`${req.function}@${req.pin}`];
+    if (!macro) return { error: `no pinmux macro for ${req.function} on ${req.pin}` };
+    const clash = wchRemapClash(model, req.owner, macro);
+    if (clash) return { error: clash };
+    cell = macro;
+  }
   else if (catalog.vendor === "nrf") {
     const m = /^P(\d+)\.(\d+)$/.exec(req.pin);
     if (!m) return { error: `${req.pin} is not an nRF pin` };
     cell = `NRF_PSEL(${req.function}, ${Number(m[1])}, ${Number(m[2])})`;
-  } else return { error: "pin assignment is supported for STM32, ESP32 and nRF" };
-  const property = catalog.vendor === "esp32" ? "pinmux" : "psels";
+  } else return { error: "pin assignment is supported for STM32, ESP32, WCH and nRF" };
+  const property = catalog.vendor === "nrf" ? "psels" : "pinmux";
 
   // existing default state: add a group to it
   const ref = current && /&([A-Za-z_]\w*)/.exec(current)?.[1];

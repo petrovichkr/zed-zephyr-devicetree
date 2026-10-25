@@ -6,6 +6,7 @@
 //   ESP32  pinmux = <UART0_TX_GPIO43>               -> GPIO43, UART0_TX
 //   STM32  pinmux = <STM32_PINMUX('A', 9, AF7)>     -> PA9, label usart1_tx
 //   nRF    psels  = <NRF_PSEL(UART_TX, 0, 6)>       -> P0.06, UART_TX
+//   WCH    pinmux = <USART3_TX_PB10_0>              -> PB10, USART3_TX (_0 is the remap)
 //   other  label ending in _pa9 / _p1_06            -> PA9 / P1.06
 // A pin used by two enabled nodes in their default state (or as GPIO) is a conflict.
 
@@ -66,6 +67,9 @@ export function decodePinmux(cell: string): { pin: string; function?: string } |
   if (m) return { pin: `P${m[1]}${m[2]}` };
   m = /^NRF_PSEL(?:_DISCONNECTED)?\(\s*(\w+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(cell);
   if (m) return { pin: `P${m[2]}.${pad2(m[3]!)}`, function: m[1] };
+  // WCH CH32: <FUNC>_P<port><pin>_<remap> or _AF<n> (ch32h41x)
+  m = /^([A-Z][A-Z0-9_]*?)_P([A-K])(\d+)_(?:AF)?\d+$/.exec(cell);
+  if (m) return { pin: `P${m[2]}${m[3]}`, function: m[1] };
   return undefined;
 }
 
@@ -84,7 +88,7 @@ function pinFromLabel(label: string): string | undefined {
 export function gpioPin(ctrl: UiNode | undefined, label: string, arg: string): string {
   const n = /^\d+$/.test(arg) ? Number(arg) : undefined;
   if (n === undefined) return `${label}.${arg}`;
-  if (ctrl?.compatible.some((c) => /stm32.*gpio/.test(c))) {
+  if (ctrl?.compatible.some((c) => /stm32.*gpio|^wch,gpio/.test(c))) {
     const port = /gpio([a-k])$/i.exec(label)?.[1];
     if (port) return `P${port.toUpperCase()}${n}`;
   }

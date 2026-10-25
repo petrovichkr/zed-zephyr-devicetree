@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { UiModel, UiNode } from "../src/ui/model.js";
-import { buildPinCatalog, parseEsp32Header, pinctrlInclude } from "../src/ui/pinfunctions.js";
+import { buildPinCatalog, parseEsp32Header, parseWchHeader, pinctrlInclude } from "../src/ui/pinfunctions.js";
 import { allowedPins, planPinAssign, planPinMove, suggestOwner } from "../src/ui/pinedits.js";
 import { buildPinMap } from "../src/ui/pins.js";
 
@@ -163,6 +163,43 @@ describe("planPinAssign", () => {
         { node: "/soc/timers@1/pwm", property: "pinctrl-0", value: "<&tim1_ch1_pa8>" },
         { node: "/soc/timers@1/pwm", property: "pinctrl-names", value: '"default"' },
       ],
+    });
+  });
+});
+
+describe("WCH CH32", () => {
+  const H = [
+    "#define USART3_TX_PB10_0  CH32V20X_V30X_PINMUX_DEFINE(PB, 10, USART3, 0)",
+    "#define USART3_TX_PC10_1  CH32V20X_V30X_PINMUX_DEFINE(PC, 10, USART3, 1)",
+    "#define USART3_RX_PB11_0  CH32V20X_V30X_PINMUX_DEFINE(PB, 11, USART3, 0)",
+  ].join("\n");
+  // the CH32V203 dtsi says ngpios = <8>, the ports have 16 pins
+  const nodes = [
+    node("/soc/pinctrl/gpio@b", { labels: ["gpiob"], compatible: ["wch,gpio"], p: { "gpio-controller": "", ngpios: "<8>" } }),
+    node("/soc/pinctrl/gpio@c", { labels: ["gpioc"], compatible: ["wch,gpio"], p: { "gpio-controller": "", ngpios: "<8>" } }),
+    node("/soc/pinctrl/usart3_default", { labels: ["usart3_default"], children: ["/soc/pinctrl/usart3_default/group1"] }),
+    node("/soc/pinctrl/usart3_default/group1", { p: { pinmux: "<USART3_TX_PB10_0>, <USART3_RX_PB11_0>" } }),
+    node("/soc/uart@40004800", { p: { "pinctrl-0": "<&usart3_default>", "pinctrl-names": '"default"' } }),
+    node("/leds/led", { p: { gpios: "<&gpioc 13 0>" } }),
+  ];
+
+  it("decodes pinmux macros, names GPIO pins and grows ports past ngpios", () => {
+    expect(pinctrlInclude(["#include <zephyr/dt-bindings/pinctrl/ch32v20x_30x-pinctrl.h>"])).toBe("zephyr/dt-bindings/pinctrl/ch32v20x_30x-pinctrl.h");
+    expect([...parseWchHeader(H)].map(([fn, l]) => [fn, l.map((x) => x.pin)])).toEqual([["USART3_TX", ["PB10", "PC10"]], ["USART3_RX", ["PB11"]]]);
+    const m = model(nodes, H);
+    expect(m.pins.usages.map((u) => `${u.pin} ${u.function}`)).toEqual(["PB10 USART3_TX", "PB11 USART3_RX", "PC13 GPIO"]);
+    expect(m.pins.unknown).toEqual([]);
+    expect(m.pinCatalog.vendor).toBe("wch");
+    expect(m.pinCatalog.ports.map((p) => [p.name, p.pins.length, p.pins.at(-1)])).toEqual([["gpiob", 16, "PB15"], ["gpioc", 16, "PC15"]]);
+  });
+
+  it("moves a function by swapping the pinmux macro, keeping one remap per peripheral", () => {
+    const tx = [...nodes.slice(0, 3), node("/soc/pinctrl/usart3_default/group1", { p: { pinmux: "<USART3_TX_PB10_0>" } }), ...nodes.slice(4)];
+    expect(planPinMove(model(tx, H), { ...req, owner: "/soc/uart@40004800", function: "USART3_TX", from: "PB10", to: "PC10" })).toEqual({
+      changes: [{ node: "/soc/pinctrl/usart3_default/group1", property: "pinmux", value: "<USART3_TX_PC10_1>" }],
+    });
+    expect(planPinMove(model(nodes, H), { ...req, owner: "/soc/uart@40004800", function: "USART3_TX", from: "PB10", to: "PC10" })).toEqual({
+      error: "USART3_TX_PC10_1 needs USART3 remap 1, but USART3_RX_PB11_0 on PB11 uses remap 0: a remap moves all USART3 signals, move them together",
     });
   });
 });

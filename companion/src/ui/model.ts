@@ -170,10 +170,10 @@ function memoryTree(t: any): UiMemoryRegion {
   };
 }
 
-/** The ESP32 pinctrl header included by the board, resolved against the context's include paths. */
-function esp32Header(nodes: Record<string, UiNode>, src: SourceCache, includePaths: string[]): { file: string; text: string } | undefined {
+/** The SoC pinctrl header included by the board (ESP32, WCH), resolved against the context's include paths. */
+function pinctrlHeader(nodes: Record<string, UiNode>, src: SourceCache, includePaths: string[]): { file: string; text: string } | undefined {
   const all = Object.values(nodes);
-  if (!all.some((n) => n.compatible.some((c) => /^espressif,esp32.*gpio/.test(c)))) return undefined;
+  if (!all.some((n) => n.compatible.some((c) => /^espressif,esp32.*gpio|^wch,gpio/.test(c)))) return undefined;
   // files that define pinctrl states first, then everything else
   const pinctrl = all.filter((n) => n.path.startsWith("/pin-controller") || n.compatible.some((c) => c.endsWith("-pinctrl")));
   const files = [...new Set([...pinctrl, ...all].flatMap((n) => n.definitions.map((d) => d.file)))];
@@ -252,7 +252,7 @@ export function buildModel(
     nodes,
     bindings,
     pins,
-    pinCatalog: buildPinCatalog(nodes, esp32Header(nodes, src, includePaths)),
+    pinCatalog: buildPinCatalog(nodes, pinctrlHeader(nodes, src, includePaths), pins.usages.map((u) => u.pin)),
     buses,
     overview: buildOverview(nodes, bindings, pins, buses),
     clocks: buildClocks(nodes),

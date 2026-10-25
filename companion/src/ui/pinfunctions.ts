@@ -7,6 +7,8 @@
 //   ESP32  `<FUNC>_GPIO<n>` macros of dt-bindings/pinctrl/<soc>-pinctrl.h, the
 //          header the board's pinctrl file includes
 //   nRF    any function on any pin (NRF_PSEL takes the port and pin as numbers)
+//   WCH    `<FUNC>_P<port><pin>_<remap>` macros of dt-bindings/pinctrl/ch32*-pinctrl.h;
+//          the macro name is what pinmux holds, so it is kept per function and pin
 // Pins come from the GPIO controllers (ngpios, 16 for STM32 ports, 32 otherwise),
 // named like the pin map names them.
 
@@ -20,14 +22,14 @@ export interface UiPort {
 }
 
 export interface UiPinCatalog {
-  vendor: "stm32" | "esp32" | "nrf" | "other";
+  vendor: "stm32" | "esp32" | "nrf" | "wch" | "other";
   ports: UiPort[];
   /** Function -> pins it can be routed to. Empty for nRF, where `anyPin` holds. */
   functions: Record<string, string[]>;
   anyPin: boolean;
-  /** STM32: `<function>@<pin>` -> HAL pinctrl node label. */
+  /** STM32: `<function>@<pin>` -> HAL pinctrl node label; WCH: -> pinmux macro. */
   labels: Record<string, string>;
-  /** Header the ESP32 functions were read from. */
+  /** Header the ESP32/WCH functions were read from. */
   source?: string;
 }
 
@@ -42,10 +44,21 @@ export function parseEsp32Header(text: string): Map<string, number[]> {
   return out;
 }
 
-/** The ESP32 pinctrl header named in `#include <.../dt-bindings/pinctrl/<soc>-pinctrl.h>`. */
+/** `#define USART3_TX_PB10_0 CH32V20X_V30X_PINMUX_DEFINE(PB, 10, USART3, 0)` -> USART3_TX: [{PB10, macro}] */
+export function parseWchHeader(text: string): Map<string, { pin: string; macro: string }[]> {
+  const out = new Map<string, { pin: string; macro: string }[]>();
+  for (const m of text.matchAll(/^\s*#define\s+(([A-Z][A-Z0-9_]*?)_P([A-K])(\d+)_(?:AF)?\d+)\s+CH32\w*PINMUX/gm)) {
+    const list = out.get(m[2]!) ?? [];
+    list.push({ pin: `P${m[3]}${m[4]}`, macro: m[1]! });
+    out.set(m[2]!, list);
+  }
+  return out;
+}
+
+/** The SoC pinctrl header named in `#include <.../dt-bindings/pinctrl/<soc>-pinctrl.h>` (ESP32, WCH CH32). */
 export function pinctrlInclude(lines: string[]): string | undefined {
   for (const l of lines) {
-    const m = /^\s*#include\s+[<"]([^>"]*dt-bindings\/pinctrl\/esp32\w*-pinctrl\.h)[>"]/.exec(l);
+    const m = /^\s*#include\s+[<"]([^>"]*dt-bindings\/pinctrl\/(?:esp32|ch32)\w*-pinctrl\.h)[>"]/.exec(l);
     if (m) return m[1];
   }
   return undefined;
@@ -53,7 +66,7 @@ export function pinctrlInclude(lines: string[]): string | undefined {
 
 const has = (n: UiNode, re: RegExp) => n.compatible.some((c) => re.test(c));
 
-export function buildPinCatalog(nodes: Record<string, UiNode>, esp32Header?: { file: string; text: string }): UiPinCatalog {
+export function buildPinCatalog(nodes: Record<string, UiNode>, header?: { file: string; text: string }, used: string[] = []): UiPinCatalog {
   const all = Object.values(nodes);
   const vendor: UiPinCatalog["vendor"] = all.some((n) => has(n, /^st,stm32.*gpio/))
     ? "stm32"
@@ -61,12 +74,25 @@ export function buildPinCatalog(nodes: Record<string, UiNode>, esp32Header?: { f
       ? "esp32"
       : all.some((n) => has(n, /^nordic,nrf-gpio/))
         ? "nrf"
-        : "other";
+        : all.some((n) => has(n, /^wch,gpio/))
+          ? "wch"
+          : "other";
+  const wch = vendor === "wch" && header ? parseWchHeader(header.text) : undefined;
 
   const ports: UiPort[] = [];
   for (const n of all) {
     if (n.disabled || !n.props.some((p) => p.name === "gpio-controller") || !n.labels[0]) continue;
-    const count = Number(cells(n.props.find((p) => p.name === "ngpios")?.value ?? "")[0]) || (vendor === "stm32" ? 16 : 32);
+    let count = Number(cells(n.props.find((p) => p.name === "ngpios")?.value ?? "")[0]) || (vendor === "stm32" || vendor === "wch" ? 16 : 32);
+    // ngpios can undercount (CH32V203 dtsi says 8, the ports have 16): grow the port to
+    // the highest pin that pinctrl macros or the devicetree actually use
+    const name0 = gpioPin(n, n.labels[0], "0");
+    if (name0.endsWith("0") && /^P[A-K]0$/.test(name0)) {
+      const port = name0.slice(0, 2);
+      const pinsOf = [...used, ...[...(wch?.values() ?? [])].flatMap((l) => l.map((x) => x.pin))];
+      const need = Math.max(0, ...pinsOf.filter((p) => p.startsWith(port) && /^\d+$/.test(p.slice(2))).map((p) => Number(p.slice(2)) + 1));
+      // ngpios is plainly wrong then: lettered ports have 16 pins
+      if (need > count) count = Math.max(need, 16);
+    }
     ports.push({ name: n.labels[0], pins: Array.from({ length: count }, (_, i) => gpioPin(n, n.labels[0]!, String(i))) });
   }
   const order = (p: string) => p.replace(/\d+/g, (d) => d.padStart(4, "0"));
@@ -91,10 +117,18 @@ export function buildPinCatalog(nodes: Record<string, UiNode>, esp32Header?: { f
       add(fn, pin);
       labels[`${fn}@${pin}`] = label;
     }
-  } else if (vendor === "esp32" && esp32Header) {
-    for (const [fn, pins] of parseEsp32Header(esp32Header.text)) for (const n of pins) add(fn, `GPIO${n}`);
+  } else if (vendor === "esp32" && header) {
+    for (const [fn, pins] of parseEsp32Header(header.text)) for (const n of pins) add(fn, `GPIO${n}`);
+  } else if (wch) {
+    for (const [fn, list] of wch) {
+      for (const { pin, macro } of list) {
+        add(fn, pin);
+        // a pin can appear under several remaps; the first (lowest) one is offered
+        labels[`${fn}@${pin}`] ??= macro;
+      }
+    }
   }
   for (const list of Object.values(functions)) list.sort((a, b) => order(a).localeCompare(order(b)));
 
-  return { vendor, ports, functions, anyPin: vendor === "nrf", labels, source: vendor === "esp32" ? esp32Header?.file : undefined };
+  return { vendor, ports, functions, anyPin: vendor === "nrf", labels, source: vendor === "esp32" || vendor === "wch" ? header?.file : undefined };
 }
