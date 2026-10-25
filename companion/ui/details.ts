@@ -3,7 +3,7 @@
 import type { Loc, UiBinding, UiBindingProp, UiModel, UiNode, UiProp } from "../src/ui/model.js";
 import { h } from "./dom.js";
 import { basename, cells, enumValue, locText, locTitle, quote } from "./format.js";
-import { flagBadges } from "./glyphs.js";
+import { editableFlags } from "./flagedit.js";
 import { busSection } from "./buses.js";
 import { usageText } from "./pins.js";
 import { applyEdit, canEdit, CUSTOM, emptyAdd, openLoc, rerender, select, showPin, state } from "./state.js";
@@ -84,7 +84,7 @@ function gpioFlagBadges(node: UiNode, p: UiProp): HTMLElement | null {
   return h(
     "div",
     { class: "gpio-flags" },
-    us.map((u) => h("span", null, h("button", { class: "link mono", onclick: () => showPin(u.pin) }, u.pin), flagBadges(u.gpioFlags) ?? h("span", { class: "muted" }, " active high"))),
+    us.map((u) => h("span", null, h("button", { class: "link mono", onclick: () => showPin(u.pin) }, u.pin), editableFlags(u))),
   );
 }
 

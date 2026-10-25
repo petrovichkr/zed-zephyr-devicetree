@@ -18,7 +18,7 @@
 
 import type { UiModel, UiNode } from "./model.js";
 import type { UiPinCatalog } from "./pinfunctions.js";
-import type { UiPinUsage } from "./pins.js";
+import type { UiGpioFlags, UiPinUsage } from "./pins.js";
 
 export interface PinMoveRequest {
   owner: string;
@@ -278,4 +278,56 @@ function newStateProps(owner: UiNode, value: string): PropertyChange[] {
     { node: owner.path, property: "pinctrl-0", value },
     { node: owner.path, property: "pinctrl-names", value: '"default"' },
   ];
+}
+
+/** Flags cell for a decoded set: `GPIO_ACTIVE_LOW`, `(GPIO_ACTIVE_LOW | GPIO_PULL_UP)`. */
+export function gpioFlagsText(f: UiGpioFlags): string {
+  const parts = [
+    f.activeLow ? "GPIO_ACTIVE_LOW" : "",
+    f.pull === "up" ? "GPIO_PULL_UP" : f.pull === "down" ? "GPIO_PULL_DOWN" : "",
+    f.drive === "open-drain" ? "GPIO_OPEN_DRAIN" : f.drive === "open-source" ? "GPIO_OPEN_SOURCE" : "",
+    ...f.extra,
+  ].filter(Boolean);
+  if (!parts.length) return "GPIO_ACTIVE_HIGH";
+  return parts.length === 1 ? parts[0]! : `(${parts.join(" | ")})`;
+}
+
+/**
+ * New value of a `*-gpios` property with the flags of entry `index` replaced:
+ * `<&gpio0 5 0>, <&gpio1 2 GPIO_ACTIVE_LOW>` -> entry 1 gets the new cell. Text
+ * outside the cell (comments, other entries, line breaks) stays as written.
+ * Undefined when the entry has no flags cell.
+ */
+export function setGpioFlags(value: string, index: number, flags: UiGpioFlags): string | undefined {
+  // top-level cells with their offsets, inside <...> only
+  const spans: { text: string; start: number; end: number }[] = [];
+  let inside = false;
+  let depth = 0;
+  let start = -1;
+  const close = (i: number) => {
+    if (start >= 0) spans.push({ text: value.slice(start, i), start, end: i });
+    start = -1;
+  };
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i]!;
+    if (!inside) {
+      if (ch === "<") inside = true;
+      continue;
+    }
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (depth === 0 && (ch === ">" || /\s/.test(ch))) {
+      close(i);
+      if (ch === ">") inside = false;
+    } else if (start < 0) start = i;
+  }
+  let n = 0;
+  for (let i = 0; i < spans.length; i++) {
+    if (!spans[i]!.text.startsWith("&") || spans[i + 1] === undefined) continue;
+    if (n++ !== index) continue;
+    const cell = spans[i + 2];
+    if (!cell || cell.text.startsWith("&")) return undefined;
+    return value.slice(0, cell.start) + gpioFlagsText(flags) + value.slice(cell.end);
+  }
+  return undefined;
 }

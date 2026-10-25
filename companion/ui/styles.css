@@ -395,3 +395,6 @@ main.memory-split { grid-template-columns: minmax(480px, 64%) 1fr; }
 .legend .flag { margin-right: 2px; }
 .swatch.ext-sw { background: none; border: 1px dashed var(--muted); }
 .gpio-flags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; font-size: 11px; }
+.flag-btn { background: none; border: none; padding: 0; cursor: pointer; }
+.flag-btn:hover .flag { border-color: var(--accent); color: var(--fg); }
+.flag-editor { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 6px; font-size: 12px; }

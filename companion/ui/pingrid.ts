@@ -11,6 +11,7 @@ import type { UiPort } from "../src/ui/pinfunctions.js";
 import type { UiPinUsage } from "../src/ui/pins.js";
 import * as api from "./api.js";
 import { h } from "./dom.js";
+import { editableFlags } from "./flagedit.js";
 import { flagBadges } from "./glyphs.js";
 import { basename, locText, locTitle } from "./format.js";
 import { usageText } from "./pins.js";
@@ -215,7 +216,7 @@ function panel(m: UiModel): HTMLElement {
       { class: u.disabled ? "muted" : "" },
       h("span", { class: `swatch ${fnClass(u.function)}` }),
       h("span", { class: "mono" }, gpioRole(m, u) ?? "?"),
-      flagBadges(u.gpioFlags),
+      editableFlags(u),
       " ",
       h("button", { class: "link", onclick: () => select(u.owner) }, m.nodes[u.owner]?.name ?? u.owner),
       h("span", { class: "muted" }, ` ${usageText(u)}${u.disabled ? ", disabled" : ""} `),

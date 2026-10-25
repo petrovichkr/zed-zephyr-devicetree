@@ -2,6 +2,7 @@
 
 import type { UiCatalogEntry } from "../src/ui/catalog.js";
 import type { UiContext, UiModel } from "../src/ui/model.js";
+import type { UiGpioFlags } from "../src/ui/pins.js";
 import * as api from "./api.js";
 
 export type Tab = "tree" | "overview" | "buses" | "memory" | "pins" | "clocks";
@@ -72,6 +73,8 @@ export const state = {
   catalogs: new Map<string, UiCatalogEntry[] | "loading">(),
   /** Address being edited in the node's Bus section. */
   address: null as { path: string; text: string } | null,
+  /** Flags of one *-gpios entry being edited (pin panel, details). */
+  flagEdit: null as { key: string; draft: UiGpioFlags } | null,
 };
 
 let renderer = (): void => {};

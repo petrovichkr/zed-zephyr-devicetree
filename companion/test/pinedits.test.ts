@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { UiModel, UiNode } from "../src/ui/model.js";
 import { buildPinCatalog, parseEsp32Header, parseWchHeader, pinctrlInclude } from "../src/ui/pinfunctions.js";
-import { allowedPins, planPinAssign, planPinMove, suggestOwner } from "../src/ui/pinedits.js";
+import { allowedPins, planPinAssign, planPinMove, setGpioFlags, suggestOwner } from "../src/ui/pinedits.js";
 import { buildPinMap } from "../src/ui/pins.js";
 
 const loc = { file: "/b.dts", line: 0, character: 0 };
@@ -201,5 +201,15 @@ describe("WCH CH32", () => {
     expect(planPinMove(model(nodes, H), { ...req, owner: "/soc/uart@40004800", function: "USART3_TX", from: "PB10", to: "PC10" })).toEqual({
       error: "USART3_TX_PC10_1 needs USART3 remap 1, but USART3_RX_PB11_0 on PB11 uses remap 0: a remap moves all USART3 signals, move them together",
     });
+  });
+});
+
+describe("setGpioFlags", () => {
+  const f = (activeLow: boolean, pull?: "up" | "down", extra: string[] = []) => ({ activeLow, pull, extra });
+  it("replaces the flags cell of one entry only", () => {
+    expect(setGpioFlags("<&gpio0 5 0>, <&gpio1 2 GPIO_ACTIVE_LOW>", 1, f(true, "up"))).toBe("<&gpio0 5 0>, <&gpio1 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>");
+    expect(setGpioFlags("<&gpio0 5 (GPIO_ACTIVE_LOW |\n\tGPIO_PULL_UP)>", 0, f(false))).toBe("<&gpio0 5 GPIO_ACTIVE_HIGH>");
+    expect(setGpioFlags("<&gpio0 5 0 &gpio0 6 0>", 1, f(false, "down", ["NRF_GPIO_DRIVE_H0H1"]))).toBe("<&gpio0 5 0 &gpio0 6 (GPIO_PULL_DOWN | NRF_GPIO_DRIVE_H0H1)>");
+    expect(setGpioFlags("<&gpio0 5>", 0, f(true))).toBeUndefined();
   });
 });
